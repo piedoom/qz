@@ -1,0 +1,27 @@
+[package]
+name = "bevy_template"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+leafwing-input-manager = { git = "https://github.com/Leafwing-Studios/leafwing-input-manager/" }
+bevy = { version = "0.14", features = ["serialize"], default-features = true }
+serde = "1"
+bevy_common_assets = { version = "0.11", features = ["ron"] }
+bevy_asset_loader = { version = "0.21", features = [
+    "2d",
+    "3d",
+    "standard_dynamic_assets",
+] }
+
+# # For physics
+# bevy_xpbd_3d = "*"
+
+# # For egui projects
+# bevy_egui = "*"
+# bevy-egui-kbgp = "*"
+# egui_extras = { version = "*", features = ["file", "image"] }
+# image = { version = "*", features = ["png"] }
+# bevy-inspector-egui = "*"
