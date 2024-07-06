@@ -15,6 +15,8 @@ use bevy::{prelude::*, window::WindowMode};
 pub struct Settings {
     /// Application window related settings
     pub window: Window,
+    /// Controls
+    pub controls: Controls,
 }
 
 /// Application window related settings
@@ -22,4 +24,24 @@ pub struct Settings {
 pub struct Window {
     /// The desired [`WindowMode`]
     pub mode: WindowMode,
+}
+
+/// Game controls
+#[derive(serde::Deserialize, serde::Serialize, Clone)]
+pub struct Controls {
+    /// Keyboard and mouse controls
+    pub keyboard: KeyboardControls,
+}
+
+/// Keyboard controls
+#[derive(serde::Deserialize, serde::Serialize, Clone)]
+pub struct KeyboardControls {
+    /// Turn left
+    pub left: KeyCode,
+    /// Turn right
+    pub right: KeyCode,
+    /// Thrust
+    pub thrust: KeyCode,
+    /// Brake
+    pub brake: KeyCode,
 }

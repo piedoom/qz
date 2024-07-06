@@ -1,5 +1,7 @@
 use std::ops::RangeInclusive;
 
+use bevy::prelude::*;
+
 /// Additional methods for the [`RangeInclusive`] type
 pub trait RangeInclusiveExt<T> {
     /// Perform a linear interpolation
@@ -16,3 +18,12 @@ impl RangeInclusiveExt<f32> for RangeInclusive<f32> {
         self.start() + (at * delta)
     }
 }
+
+pub trait TransformExt {
+    /// Default with Z-up
+    fn default_z() -> Transform {
+        Transform::default().looking_to(Dir3::X, Dir3::Z)
+    }
+}
+
+impl TransformExt for Transform {}

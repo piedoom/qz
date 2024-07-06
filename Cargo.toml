@@ -15,9 +15,9 @@ bevy_asset_loader = { version = "0.21", features = [
     "3d",
     "standard_dynamic_assets",
 ] }
-
-# # For physics
-# bevy_xpbd_3d = "*"
+avian3d = "0.1"
+bitflags = "2.6.0"
+thiserror = "1.0.61"
 
 # # For egui projects
 # bevy_egui = "*"

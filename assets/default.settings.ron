@@ -1,5 +1,13 @@
 Settings(
     window: (
         mode: Windowed,
-    )
+    ),
+    controls: (
+        keyboard: (
+            left: KeyA,
+            right: KeyD,
+            thrust: KeyW,
+            brake: KeyS,
+        ),
+    ),
 )

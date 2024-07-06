@@ -13,7 +13,7 @@ impl Plugin for AssetsPlugin {
             // we can be sure all assets are loaded first
             .add_loading_state(
                 LoadingState::new(AppState::preloading())
-                    .continue_to_state(AppState::loading())
+                    .continue_to_state(AppState::main())
                     .with_dynamic_assets_file::<StandardDynamicAssetCollection>(
                         "default.assets.ron",
                     )

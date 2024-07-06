@@ -1,4 +1,5 @@
+mod action;
 mod assets;
 pub mod settings;
 
-pub use {assets::*, settings::Settings};
+pub use {action::Action, assets::*, settings::Settings};

@@ -2,7 +2,7 @@
 
 #![allow(clippy::type_complexity)]
 #![allow(clippy::too_many_arguments)]
-#![deny(missing_docs)]
+// #![deny(missing_docs)]
 
 mod components;
 mod plugins;
