@@ -1,7 +1,5 @@
 use crate::prelude::*;
-use avian3d::prelude::{
-    AngularVelocity, ExternalAngularImpulse, ExternalImpulse, LinearDamping, LinearVelocity,
-};
+use avian3d::prelude::{AngularVelocity, LinearDamping, LinearVelocity};
 use bevy::prelude::*;
 
 pub struct ControllersPlugin;
@@ -20,18 +18,21 @@ impl Plugin for ControllersPlugin {
 
 /// Apply input to the controllers
 fn apply_controller_movement(
-    mut players: Query<(
-        &Transform,
-        &Craft,
-        &mut Controller,
-        &mut LinearVelocity,
-        &mut AngularVelocity,
-        &mut LinearDamping,
-    )>,
+    mut characters: Query<
+        (
+            &Transform,
+            &Craft,
+            &mut Controller,
+            &mut LinearVelocity,
+            &mut AngularVelocity,
+            &mut LinearDamping,
+        ),
+        Without<Destroyed>,
+    >,
     time: Res<Time>,
 ) {
     let dt = time.delta_seconds();
-    players.iter_mut().for_each(
+    characters.iter_mut().for_each(
         |(transform, craft, controller, mut velocity, mut angular, mut damping)| {
             **velocity += controller.thrust * transform.forward() * dt * craft.acceleration;
             **velocity = velocity.clamp_length_max(craft.speed);
@@ -42,7 +43,9 @@ fn apply_controller_movement(
 }
 
 /// Apply limitations of a particular craft
-fn apply_craft_physics(mut crafts: Query<(&mut LinearVelocity, &mut AngularVelocity, &Craft)>) {
+fn apply_craft_physics(
+    mut crafts: Query<(&mut LinearVelocity, &mut AngularVelocity, &Craft), Without<Destroyed>>,
+) {
     crafts
         .iter_mut()
         .for_each(|(mut velocity, mut angular_velocity, craft)| {

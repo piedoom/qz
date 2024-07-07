@@ -8,6 +8,7 @@ Settings(
             right: KeyD,
             thrust: KeyW,
             brake: KeyS,
+            fire: Space,
         ),
     ),
 )

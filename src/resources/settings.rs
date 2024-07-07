@@ -44,4 +44,6 @@ pub struct KeyboardControls {
     pub thrust: KeyCode,
     /// Brake
     pub brake: KeyCode,
+    /// Fire
+    pub fire: KeyCode,
 }

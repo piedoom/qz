@@ -1,4 +1,5 @@
-use avian3d::prelude::*;
+use std::time::Duration;
+
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::*;
 
@@ -22,11 +23,13 @@ fn setup(mut cmd: Commands, settings: Res<Settings>) {
             ),
         )
         .with(Action::Thrust, settings.controls.keyboard.thrust)
-        .with(Action::Brake, settings.controls.keyboard.brake);
+        .with(Action::Brake, settings.controls.keyboard.brake)
+        .with(Action::Fire, settings.controls.keyboard.fire);
 
     // Spawn player
     cmd.spawn((
         Player,
+        Name::new("Player"),
         InputManagerBundle::with_map(input_map),
         CraftBundle {
             alliegance: Alliegance {
@@ -34,12 +37,56 @@ fn setup(mut cmd: Commands, settings: Res<Settings>) {
                 allies: Faction::PLAYER,
                 enemies: Faction::ENEMY,
             },
+            equipment: Equipment {
+                inventory: Inventory::default()
+                    .with(
+                        Item {
+                            name: "gun",
+                            mass: 1f32,
+                            size: 1,
+                            equipment: Some(EquipmentType::Weapon(Weapon {
+                                weapon_type: WeaponType::Projectile {
+                                    speed: 10.0,
+                                    recoil: Duration::from_millis(200),
+                                    damage: 20,
+                                    radius: 0.1,
+                                    spread: 30f32.to_radians(),
+                                    shots: 3,
+                                    lifetime: Duration::from_secs(4),
+                                },
+                                wants_to_fire: default(),
+                                last_fired: default(),
+                            })),
+                        },
+                        1,
+                    )
+                    .unwrap()
+                    .with(
+                        Item {
+                            name: "gun2",
+                            mass: 1f32,
+                            size: 1,
+                            equipment: Some(EquipmentType::Weapon(Weapon {
+                                weapon_type: WeaponType::Projectile {
+                                    speed: 18.0,
+                                    recoil: Duration::from_millis(20),
+                                    damage: 1,
+                                    radius: 0.05,
+                                    spread: 1f32.to_radians(),
+                                    shots: 1,
+                                    lifetime: Duration::from_secs(4),
+                                },
+                                wants_to_fire: default(),
+                                last_fired: default(),
+                            })),
+                        },
+                        1,
+                    )
+                    .unwrap(),
+            },
             ..default()
         },
-    ))
-    .with_children(|cmd| {
-        cmd.spawn(Equipment::default());
-    });
+    ));
 
     // Spawn enemies
     for i in 0..10 {
@@ -61,13 +108,35 @@ fn setup(mut cmd: Commands, settings: Res<Settings>) {
                     15.0,
                     0.0,
                 )),
+                equipment: Equipment {
+                    inventory: Inventory::default()
+                        .with(
+                            Item {
+                                name: "gun",
+                                mass: 1f32,
+                                size: 1,
+                                equipment: Some(EquipmentType::Weapon(Weapon {
+                                    weapon_type: WeaponType::Projectile {
+                                        speed: 8.0,
+                                        recoil: Duration::from_millis(400),
+                                        damage: 5,
+                                        spread: 20f32.to_radians(),
+                                        shots: 1,
+                                        radius: 0.1,
+                                        lifetime: Duration::from_secs(2),
+                                    },
+                                    wants_to_fire: default(),
+                                    last_fired: default(),
+                                })),
+                            },
+                            1,
+                        )
+                        .unwrap(),
+                },
                 ..default()
             },
             Npc,
-        ))
-        .with_children(|cmd| {
-            cmd.spawn(Equipment::default());
-        });
+        ));
     }
 
     // Spawn camera

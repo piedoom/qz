@@ -20,8 +20,9 @@ bitflags = "2.6.0"
 thiserror = "1.0.61"
 
 # # For egui projects
-# bevy_egui = "*"
+bevy_egui = "*"
 # bevy-egui-kbgp = "*"
 # egui_extras = { version = "*", features = ["file", "image"] }
 # image = { version = "*", features = ["png"] }
-# bevy-inspector-egui = "*"
+bevy-inspector-egui = "*"
+rand = "0.8.5"

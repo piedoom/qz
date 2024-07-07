@@ -10,4 +10,6 @@ pub enum Action {
     Thrust,
     /// Brake
     Brake,
+    /// Fire
+    Fire,
 }

@@ -1,8 +1,4 @@
 use crate::prelude::*;
-use avian3d::{
-    parry::na::ComplexField,
-    prelude::{AngularVelocity, ExternalAngularImpulse, ExternalImpulse, LinearVelocity},
-};
 use bevy::prelude::*;
 
 pub struct AiPlugin;
@@ -14,10 +10,11 @@ impl Plugin for AiPlugin {
 }
 
 fn fly_towards_enemy(
-    mut npcs: Query<(&mut Controller, &Transform, &Alliegance), With<Npc>>,
+    mut npcs: Query<(&mut Controller, &Transform, &Alliegance, Option<&Children>), With<Npc>>,
+    mut weapons: Query<&mut Weapon>,
     all_crafts: Query<(&Transform, &Alliegance)>,
 ) {
-    for (mut controller, transform, alliegance) in npcs.iter_mut() {
+    for (mut controller, transform, alliegance, children) in npcs.iter_mut() {
         // TODO: Don't retarget every frame
         let mut enemies = all_crafts
             .iter()
@@ -33,9 +30,17 @@ fn fly_towards_enemy(
             // get the dot product between the enemy forward vector and the direction to the player.
             let forward_dot_enemy = forward.dot(to_enemy);
 
+            let accuracy = (forward_dot_enemy - 1.0).abs();
+            if accuracy < 0.05 && children.is_some() {
+                for child in children.unwrap() {
+                    if let Ok(mut weapon) = weapons.get_mut(*child) {
+                        weapon.wants_to_fire = true;
+                    }
+                }
+            }
             // if the dot product is approximately 1.0 then already facing and
             // we can early out.
-            if (forward_dot_enemy - 1.0).abs() < f32::EPSILON {
+            if accuracy < f32::EPSILON {
                 continue;
             }
 

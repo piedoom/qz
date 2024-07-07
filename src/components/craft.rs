@@ -5,6 +5,27 @@ use bevy::prelude::*;
 
 use crate::prelude::*;
 
+#[derive(Component)]
+pub struct Destroyed;
+
+#[derive(Component, Deref, DerefMut)]
+pub struct Health(usize);
+
+#[derive(Component, Deref, DerefMut, Default)]
+pub struct Damage(usize);
+
+impl From<usize> for Health {
+    fn from(value: usize) -> Self {
+        Self(value)
+    }
+}
+
+impl From<usize> for Damage {
+    fn from(value: usize) -> Self {
+        Self(value)
+    }
+}
+
 /// Moveable thing
 #[derive(Component)]
 pub struct Craft {
@@ -29,7 +50,10 @@ pub struct CraftBundle {
     pub locked_axes: LockedAxes,
     pub transform: Transform,
     pub alliegance: Alliegance,
-    pub inventory: Inventory<'static>,
+    pub inventory: Inventory,
+    pub equipment: Equipment,
+    pub health: Health,
+    pub damage: Damage,
 }
 
 impl Default for CraftBundle {
@@ -57,6 +81,9 @@ impl Default for CraftBundle {
             },
             inventory: Inventory::default(),
             linear_damping: LinearDamping::default(),
+            equipment: Equipment::default(),
+            health: 64.into(),
+            damage: default(),
         }
     }
 }

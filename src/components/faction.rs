@@ -1,5 +1,6 @@
 //! Non players
 
+use avian3d::prelude::PhysicsLayer;
 use bevy::prelude::*;
 
 #[derive(Component, Copy, Clone)]
@@ -17,5 +18,14 @@ bitflags::bitflags! {
     pub struct Faction: u32 {
         const PLAYER = 1;
         const ENEMY = 2;
+    }
+}
+impl PhysicsLayer for Faction {
+    fn to_bits(&self) -> u32 {
+        self.bits()
+    }
+
+    fn all_bits() -> u32 {
+        Self::all().bits()
     }
 }

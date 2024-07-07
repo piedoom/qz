@@ -1,7 +1,4 @@
 use crate::prelude::*;
-use avian3d::prelude::{
-    AngularVelocity, ExternalAngularImpulse, ExternalForce, ExternalImpulse, ExternalTorque,
-};
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::*;
 
@@ -19,10 +16,19 @@ impl Plugin for InputPlugin {
 }
 
 /// Apply desired input to the player controller
-fn apply_player_input(mut players: Query<(&ActionState<Action>, &mut Controller), With<Player>>) {
-    players.iter_mut().for_each(|(actions, mut controller)| {
+fn apply_player_input(
+    mut players: Query<(&ActionState<Action>, &mut Controller, &Children), With<Player>>,
+    mut weapons: Query<&mut Weapon>,
+) {
+    for (actions, mut controller, children) in players.iter_mut() {
         controller.angular_thrust = actions.value(&Action::Turn);
         controller.thrust = actions.value(&Action::Thrust);
         controller.brake = actions.value(&Action::Brake);
-    });
+        // Get all weapons attached to the player
+        for child in children.iter() {
+            if let Ok(mut weapon) = weapons.get_mut(*child) {
+                weapon.wants_to_fire = actions.value(&Action::Fire) != 0f32;
+            }
+        }
+    }
 }
