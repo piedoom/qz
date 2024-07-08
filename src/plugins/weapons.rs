@@ -1,6 +1,6 @@
 use crate::prelude::*;
 use avian3d::{
-    collision::{Collider, CollidingEntities, CollisionLayers},
+    collision::{Collider, CollidingEntities, CollisionLayers, LayerMask, Sensor},
     prelude::{LinearVelocity, LockedAxes, RigidBody},
 };
 use bevy::prelude::*;
@@ -12,26 +12,8 @@ impl Plugin for WeaponsPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (
-                manage_weapons,
-                set_craft_collison_layers,
-                manage_projectile_collisions,
-                manage_damage,
-            ),
+            (manage_weapons, manage_projectile_collisions, manage_damage),
         );
-    }
-}
-
-/// Set collision layers based off of alliegances for crafts specifically
-fn set_craft_collison_layers(
-    mut cmd: Commands,
-    alliegances: Query<(Entity, &Alliegance), (Changed<Alliegance>, With<Craft>)>,
-) {
-    for (entity, alliegance) in alliegances.iter() {
-        cmd.entity(entity).insert(CollisionLayers {
-            memberships: alliegance.allies.into(),
-            filters: alliegance.enemies.union(alliegance.allies).into(),
-        });
     }
 }
 
@@ -76,13 +58,17 @@ fn manage_weapons(
                             // Spawn a projectile
                             cmd.spawn((
                                 Projectile { damage },
+                                *alliegance,
                                 LockedAxes::new().lock_translation_z(),
-                                CollisionLayers::new(
-                                    alliegance.allies.bits(),
-                                    alliegance.enemies.bits(),
-                                ),
+                                // It might be tempting to store information in the memberships, but this has unintended interactions
+                                // Use a component instead for that
+                                CollisionLayers {
+                                    memberships: Layers::Weapon.into(),
+                                    filters: LayerMask::from([Layers::Craft, Layers::Structure]),
+                                },
                                 *transform,
                                 RigidBody::Dynamic,
+                                Sensor,
                                 Collider::sphere(radius),
                                 LinearVelocity(
                                     transform
@@ -109,14 +95,37 @@ fn manage_weapons(
 
 fn manage_projectile_collisions(
     mut cmd: Commands,
-    mut damage: Query<&mut Damage, Without<Destroyed>>,
-    projectile_hits: Query<(Entity, &CollidingEntities, &Projectile)>,
+    mut collided: Query<(&mut Damage, Option<&Alliegance>), Without<Destroyed>>,
+    projectile_hits: Query<(Entity, &CollidingEntities, &Projectile, Option<&Alliegance>)>,
 ) {
-    for (projectile_entity, colliding_entities, projectile) in projectile_hits.iter() {
+    for (projectile_entity, colliding_entities, projectile, maybe_alliegance) in
+        projectile_hits.iter()
+    {
         for colliding_entity in colliding_entities.iter() {
-            if let Ok(mut damage) = damage.get_mut(*colliding_entity) {
-                **damage += projectile.damage as f32;
-                cmd.entity(projectile_entity).despawn_recursive();
+            // deteremine if the collided entity is an enemy
+            let alliegance = match maybe_alliegance {
+                Some(alliegance) => *alliegance,
+                None => Alliegance {
+                    faction: Faction::empty(),
+                    allies: Faction::empty(),
+                    enemies: Faction::all(),
+                },
+            };
+
+            if let Ok((mut damage, maybe_collided_alliegance)) = collided.get_mut(*colliding_entity)
+            {
+                let other_alliegance = match maybe_collided_alliegance {
+                    Some(alliegance) => *alliegance,
+                    None => Alliegance {
+                        faction: Faction::all(),
+                        allies: Faction::all(),
+                        enemies: Faction::all(),
+                    },
+                };
+                if alliegance.enemies.contains(other_alliegance.faction) {
+                    **damage += projectile.damage as f32;
+                    cmd.entity(projectile_entity).despawn_recursive();
+                }
             }
         }
     }

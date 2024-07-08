@@ -56,6 +56,7 @@ pub struct CraftBundle {
     pub equipment: Equipment,
     pub health: Health,
     pub damage: Damage,
+    pub collision_layers: CollisionLayers,
 }
 
 impl Default for CraftBundle {
@@ -86,6 +87,10 @@ impl Default for CraftBundle {
             equipment: Equipment::default(),
             health: 64.into(),
             damage: default(),
+            collision_layers: CollisionLayers {
+                memberships: LayerMask::from([Layers::Craft]),
+                filters: LayerMask::from([Layers::Craft, Layers::Weapon]),
+            },
         }
     }
 }

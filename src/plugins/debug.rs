@@ -9,7 +9,13 @@ impl Plugin for DebugPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (draw_controllers, draw_projectiles, draw_health_and_damage),
+            (
+                draw_controllers,
+                draw_projectiles,
+                draw_health_and_damage,
+                draw_reference_grid,
+                draw_structures,
+            ),
         );
     }
 }
@@ -33,6 +39,35 @@ fn draw_controllers(
         gizmos.cuboid(*transform, color);
         gizmos.arrow(pos - *f, pos + *f, color);
     }
+}
+
+fn draw_reference_grid(mut gizmos: Gizmos) {
+    // get 2d point
+    gizmos.grid_2d(
+        Vec2::ZERO,
+        0f32,
+        UVec2::new(64, 64),
+        Vec2::splat(8f32),
+        Color::srgba(1f32, 1f32, 1f32, 0.05f32),
+    );
+    gizmos
+        .grid_3d(
+            Vec3::new(0f32, 0f32, -64f32),
+            default(),
+            UVec3::new(128, 128, 0),
+            Vec3::splat(8f32),
+            Color::srgba(1f32, 1f32, 1f32, 0.01f32),
+        )
+        .outer_edges();
+    gizmos
+        .grid_3d(
+            Vec3::new(0f32, 0f32, -128f32),
+            default(),
+            UVec3::new(256, 256, 0),
+            Vec3::splat(8f32),
+            Color::srgba(1f32, 1f32, 1f32, 0.01f32),
+        )
+        .outer_edges();
 }
 
 fn draw_projectiles(
@@ -60,5 +95,11 @@ fn draw_health_and_damage(
             Vec2::new((**health as f32 - **damage) / **health as f32, 0.2),
             Color::srgb(0.0, 1.0, 0.0),
         );
+    }
+}
+
+fn draw_structures(mut gizmos: Gizmos, structures: Query<(&Transform, &Structure)>) {
+    for (transform, _structure) in structures.iter() {
+        gizmos.cuboid(*transform, Color::srgb(0.4, 0., 1.));
     }
 }

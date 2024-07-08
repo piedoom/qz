@@ -1,5 +1,6 @@
 use std::ops::RangeInclusive;
 
+use avian3d::prelude::PhysicsLayer;
 use bevy::prelude::*;
 
 /// Additional methods for the [`RangeInclusive`] type
@@ -27,3 +28,10 @@ pub trait TransformExt {
 }
 
 impl TransformExt for Transform {}
+
+#[derive(PhysicsLayer)]
+pub enum Layers {
+    Structure,
+    Craft,
+    Weapon,
+}
