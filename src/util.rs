@@ -1,6 +1,5 @@
 use std::ops::RangeInclusive;
 
-use avian3d::prelude::PhysicsLayer;
 use bevy::prelude::*;
 
 /// Additional methods for the [`RangeInclusive`] type

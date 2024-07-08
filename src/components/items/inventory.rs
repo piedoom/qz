@@ -1,9 +1,7 @@
-use std::time::Duration;
-
 use bevy::{prelude::*, utils::HashMap};
 use thiserror::Error;
 
-use crate::resources::events::EquipEvent;
+use crate::prelude::*;
 
 /// only `items` count towards the `max_size`. Equipment does not affect this.
 #[derive(Component)]
@@ -110,86 +108,11 @@ impl Inventory {
     }
 }
 
-/// Equipment needs to use the parent/child tree, so it should
-/// be attached to a child entity of the main entity specifically for equipment.
-/// For example, a parent `Craft` entity contains a child `Equipment` entity, and
-/// that child contains multiple equipped `Items` as children of its own. This allows
+/// Equipment needs to use the parent/child tree. This allows
 /// for multiple equips of the same type to be used at once
 #[derive(Default, Component)]
 pub struct Equipment {
     pub inventory: Inventory,
-}
-
-#[derive(Clone, Component)]
-pub struct Item {
-    pub name: &'static str,
-    pub mass: f32,
-    pub size: usize,
-    pub equipment: Option<EquipmentType>,
-}
-
-impl PartialEq for Item {
-    fn eq(&self, other: &Self) -> bool {
-        self.name == other.name
-    }
-}
-
-impl Eq for Item {}
-
-impl std::hash::Hash for Item {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.name.hash(state)
-    }
-}
-
-#[derive(Clone)]
-pub enum EquipmentType {
-    Weapon(Weapon),
-}
-
-#[derive(Clone, Component)]
-pub struct Weapon {
-    pub wants_to_fire: bool,
-    pub last_fired: Duration,
-    pub weapon_type: WeaponType,
-}
-
-#[derive(Clone)]
-pub enum WeaponType {
-    Projectile {
-        /// Speed of projectile
-        speed: f32,
-        /// Duration between new projectile shots
-        recoil: Duration,
-        // Cone in radians of potential spread
-        spread: f32,
-        // Shots to fire at once
-        shots: usize,
-        damage: usize,
-        radius: f32,
-        lifetime: Duration,
-    },
-}
-
-#[derive(Clone, Component)]
-pub struct Projectile {
-    pub damage: usize,
-}
-
-/// Marker for the item type used for determining equippable status as well as for categorization
-/// This also allows us to implement multiple categories of items if we'd like but still have a single item category
-pub enum ItemCategory {
-    Weapon,
-    None,
-}
-
-impl ItemCategory {
-    pub fn equippable(&self) -> bool {
-        match self {
-            ItemCategory::Weapon => true,
-            ItemCategory::None => false,
-        }
-    }
 }
 
 #[derive(Error, Debug)]

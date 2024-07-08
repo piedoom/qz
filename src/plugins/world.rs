@@ -37,6 +37,17 @@ fn setup(mut cmd: Commands, settings: Res<Settings>) {
                 allies: Faction::PLAYER,
                 enemies: Faction::ENEMY,
             },
+            inventory: Inventory::default()
+                .with(
+                    Item {
+                        name: "metals",
+                        mass: 1.,
+                        size: 1,
+                        equipment: None,
+                    },
+                    10,
+                )
+                .unwrap(),
             equipment: Equipment {
                 inventory: Inventory::default()
                     .with(
@@ -79,6 +90,16 @@ fn setup(mut cmd: Commands, settings: Res<Settings>) {
                                 wants_to_fire: default(),
                                 last_fired: default(),
                             })),
+                        },
+                        1,
+                    )
+                    .unwrap()
+                    .with(
+                        Item {
+                            name: "repair",
+                            mass: 1f32,
+                            size: 1,
+                            equipment: Some(EquipmentType::RepairBot(RepairBot { rate: 5f32 })),
                         },
                         1,
                     )

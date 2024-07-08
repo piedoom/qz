@@ -11,8 +11,10 @@ pub struct Destroyed;
 #[derive(Component, Deref, DerefMut)]
 pub struct Health(usize);
 
+/// Damage inflicted. Used in tandem with [`Health`]. Damage is a float instead of an integer, as
+/// repairs may repair fractional amounts
 #[derive(Component, Deref, DerefMut, Default)]
-pub struct Damage(usize);
+pub struct Damage(f32);
 
 impl From<usize> for Health {
     fn from(value: usize) -> Self {
@@ -20,8 +22,8 @@ impl From<usize> for Health {
     }
 }
 
-impl From<usize> for Damage {
-    fn from(value: usize) -> Self {
+impl From<f32> for Damage {
+    fn from(value: f32) -> Self {
         Self(value)
     }
 }

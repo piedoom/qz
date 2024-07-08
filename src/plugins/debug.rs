@@ -1,4 +1,4 @@
-use avian3d::collision::{Collider, ScalableCollider};
+use avian3d::collision::Collider;
 use bevy::prelude::*;
 
 use crate::prelude::*;
@@ -57,7 +57,7 @@ fn draw_health_and_damage(
         gizmos.rect_2d(
             transform.translation.truncate(),
             0f32,
-            Vec2::new((**health as f32 - **damage as f32) / **health as f32, 0.2),
+            Vec2::new((**health as f32 - **damage) / **health as f32, 0.2),
             Color::srgb(0.0, 1.0, 0.0),
         );
     }

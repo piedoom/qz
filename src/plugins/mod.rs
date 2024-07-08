@@ -4,13 +4,16 @@ mod controllers;
 mod debug;
 mod input;
 mod inventory;
+mod repairs;
 mod settings;
+mod ui;
 mod utility;
 mod weapons;
 mod world;
 
 use avian3d::{prelude::Gravity, PhysicsPlugins};
 use bevy::{app::PluginGroupBuilder, prelude::*};
+use bevy_egui::EguiPlugin;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 use crate::prelude::AppState;
@@ -26,6 +29,7 @@ impl PluginGroup for ClientPlugins {
         PluginGroupBuilder::start::<Self>()
             .add_group(DefaultPlugins)
             .add_group(PhysicsPlugins::default())
+            .add(EguiPlugin)
             .add(WorldInspectorPlugin::new())
             .add(ClientInitPlugin)
             .add(assets::AssetsPlugin)
@@ -38,6 +42,8 @@ impl PluginGroup for ClientPlugins {
             .add(inventory::InventoryPlugin)
             .add(weapons::WeaponsPlugin)
             .add(utility::UtilityPlugin)
+            .add(ui::UiPlugin)
+            .add(repairs::RepairsPlugin)
     }
 }
 

@@ -44,6 +44,9 @@ fn manage_equipment(
                             EquipmentType::Weapon(weapon) => {
                                 cmd.spawn((weapon.clone(), item.clone(), Name::new(item.name)));
                             }
+                            EquipmentType::RepairBot(repair) => {
+                                cmd.spawn((repair.clone(), item.clone(), Name::new(item.name)));
+                            }
                         },
                         None => unreachable!(),
                     });

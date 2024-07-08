@@ -115,7 +115,7 @@ fn manage_projectile_collisions(
     for (projectile_entity, colliding_entities, projectile) in projectile_hits.iter() {
         for colliding_entity in colliding_entities.iter() {
             if let Ok(mut damage) = damage.get_mut(*colliding_entity) {
-                **damage += projectile.damage;
+                **damage += projectile.damage as f32;
                 cmd.entity(projectile_entity).despawn_recursive();
             }
         }
@@ -127,7 +127,7 @@ fn manage_damage(
     health_and_damage: Query<(Entity, &Health, &Damage), Changed<Damage>>,
 ) {
     for (entity, health, damage) in health_and_damage.iter() {
-        if **damage >= **health {
+        if **damage >= **health as f32 {
             cmd.entity(entity).insert(Destroyed);
         }
     }
