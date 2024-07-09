@@ -19,6 +19,13 @@ impl Plugin for WorldPlugin {
     }
 }
 
+const METALS: Item = Item {
+    name: "metals",
+    mass: 1.,
+    size: 1,
+    equipment: None,
+};
+
 fn setup(mut cmd: Commands, settings: Res<Settings>) {
     let input_map = InputMap::default()
         .with(
@@ -37,6 +44,10 @@ fn setup(mut cmd: Commands, settings: Res<Settings>) {
         Player,
         Name::new("Player"),
         InputManagerBundle::with_map(input_map),
+        ChestsInRange {
+            chests: default(),
+            range: 5f32,
+        },
         CraftBundle {
             alliegance: Alliegance {
                 faction: Faction::PLAYER,
@@ -44,14 +55,28 @@ fn setup(mut cmd: Commands, settings: Res<Settings>) {
                 enemies: Faction::ENEMY,
             },
             inventory: Inventory::default()
+                .with(METALS, 10)
+                .unwrap()
                 .with(
                     Item {
-                        name: "metals",
-                        mass: 1.,
+                        name: "gun2",
+                        mass: 1f32,
                         size: 1,
-                        equipment: None,
+                        equipment: Some(EquipmentType::Weapon(Weapon {
+                            weapon_type: WeaponType::Projectile {
+                                speed: 18.0,
+                                recoil: Duration::from_millis(20),
+                                damage: 1,
+                                radius: 0.05,
+                                spread: 1f32.to_radians(),
+                                shots: 1,
+                                lifetime: Duration::from_secs(4),
+                            },
+                            wants_to_fire: default(),
+                            last_fired: default(),
+                        })),
                     },
-                    10,
+                    1,
                 )
                 .unwrap(),
             equipment: Equipment {
@@ -64,33 +89,11 @@ fn setup(mut cmd: Commands, settings: Res<Settings>) {
                             equipment: Some(EquipmentType::Weapon(Weapon {
                                 weapon_type: WeaponType::Projectile {
                                     speed: 10.0,
-                                    recoil: Duration::from_millis(200),
+                                    recoil: Duration::from_millis(100),
                                     damage: 20,
                                     radius: 0.1,
-                                    spread: 30f32.to_radians(),
-                                    shots: 3,
-                                    lifetime: Duration::from_secs(4),
-                                },
-                                wants_to_fire: default(),
-                                last_fired: default(),
-                            })),
-                        },
-                        1,
-                    )
-                    .unwrap()
-                    .with(
-                        Item {
-                            name: "gun2",
-                            mass: 1f32,
-                            size: 1,
-                            equipment: Some(EquipmentType::Weapon(Weapon {
-                                weapon_type: WeaponType::Projectile {
-                                    speed: 18.0,
-                                    recoil: Duration::from_millis(20),
-                                    damage: 1,
-                                    radius: 0.05,
-                                    spread: 1f32.to_radians(),
-                                    shots: 1,
+                                    spread: 5f32.to_radians(),
+                                    shots: 2,
                                     lifetime: Duration::from_secs(4),
                                 },
                                 wants_to_fire: default(),
@@ -121,6 +124,26 @@ fn setup(mut cmd: Commands, settings: Res<Settings>) {
         ..default()
     });
 
+    // spawn base
+    cmd.spawn((
+        Structure,
+        Health::from(1500),
+        Damage::default(),
+        Mass(100000f32),
+        Collider::sphere(2f32),
+        Alliegance {
+            faction: Faction::PLAYER,
+            allies: Faction::PLAYER,
+            enemies: Faction::ENEMY,
+        },
+        CollisionLayers {
+            memberships: LayerMask::from([PhysicsCategory::Structure]),
+            filters: LayerMask::from([PhysicsCategory::Weapon, PhysicsCategory::Structure]),
+        },
+        LockedAxes::ROTATION_LOCKED,
+        Transform::default_z(),
+    ));
+
     // spawn nest
     cmd.spawn((
         Structure,
@@ -140,8 +163,8 @@ fn setup(mut cmd: Commands, settings: Res<Settings>) {
             enemies: Faction::PLAYER,
         },
         CollisionLayers {
-            memberships: LayerMask::from([Layers::Structure]),
-            filters: LayerMask::from([Layers::Weapon, Layers::Structure]),
+            memberships: LayerMask::from([PhysicsCategory::Structure]),
+            filters: LayerMask::from([PhysicsCategory::Weapon, PhysicsCategory::Structure]),
         },
         LockedAxes::ROTATION_LOCKED,
         Transform::default_z().with_translation(Vec3::new(10f32, 10f32, 0f32)),
@@ -161,6 +184,7 @@ fn manage_spawners(
                 // Spawn thing
                 cmd.spawn((
                     SpawnedFrom(entity),
+                    InRange::new(16.0),
                     CraftBundle {
                         craft: Craft {
                             speed: 6f32,
@@ -202,6 +226,16 @@ fn manage_spawners(
                         ..default()
                     },
                     Npc,
+                    Drop {
+                        items: [(
+                            METALS,
+                            DropRate {
+                                amount: 10..=20,
+                                d: 3,
+                            },
+                        )]
+                        .into(),
+                    },
                 ));
             }
             spawner.last_spawned = time.elapsed();

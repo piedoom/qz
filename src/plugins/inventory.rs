@@ -1,16 +1,48 @@
 use crate::prelude::*;
+use avian3d::prelude::*;
 use bevy::prelude::*;
-use events::EquipEvent;
+use events::{EquipEvent, InventoryEvent};
+use rand::Rng;
 
 pub struct InventoryPlugin;
 
 impl Plugin for InventoryPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<EquipEvent>().add_systems(
-            Update,
-            (manage_equipment.pipe(handle_errors), init_equipment),
-        );
+        app.add_event::<InventoryEvent>()
+            .add_event::<EquipEvent>()
+            .add_systems(
+                Update,
+                (
+                    manage_equipment.pipe(handle_errors),
+                    manage_inventory.pipe(handle_errors),
+                    init_equipment,
+                    manage_drops.pipe(handle_errors),
+                    update_chests_in_range,
+                ),
+            );
     }
+}
+
+fn manage_inventory(
+    mut inventories: Query<&mut Inventory>,
+    mut events: EventReader<events::InventoryEvent>,
+) -> Result<(), InventoryError> {
+    for event in events.read() {
+        match event {
+            InventoryEvent::Transfer {
+                from,
+                to,
+                item,
+                amount,
+            } => {
+                let [mut from, mut to] = inventories
+                    .get_many_mut([*from, *to])
+                    .map_err(|_| InventoryError::Unqueriable)?;
+                from.transfer(item, &mut to, *amount)?;
+            }
+        }
+    }
+    Ok(())
 }
 
 fn manage_equipment(
@@ -34,7 +66,7 @@ fn manage_equipment(
 
                 if *manage_inventory {
                     // shuffle inventory
-                    inventory.move_to(item, &mut equipment.inventory, Some(1))?;
+                    inventory.transfer(item, &mut equipment.inventory, Some(1))?;
                 }
 
                 // Add entity with given component
@@ -70,7 +102,9 @@ fn manage_equipment(
 
                     // shuffle inventory
                     if *manage_inventory {
-                        equipment.inventory.move_to(item, &mut inventory, Some(1))?;
+                        equipment
+                            .inventory
+                            .transfer(item, &mut inventory, Some(1))?;
                     }
                 }
             }
@@ -101,5 +135,72 @@ fn init_equipment(
                 });
             }
         }
+    }
+}
+
+fn manage_drops(
+    mut cmd: Commands,
+    // Query for just-destroyed entities with a `Drop` component
+    drops: Query<(&Drop, &Transform), Added<Destroyed>>,
+) -> Result<(), InventoryError> {
+    for (drop, transform) in drops.iter() {
+        let mut inv = Inventory::default();
+        // Filter with probabilities to find the items we will actually drop
+        let mut rng = rand::thread_rng();
+
+        let items_to_drop = drop.items.iter().filter_map(|(it, p)| {
+            if rng.gen_ratio(1, p.d as u32) {
+                Some((it, p.amount.clone()))
+            } else {
+                None
+            }
+        });
+
+        let mut rng = rand::thread_rng();
+        for (item, amount) in items_to_drop {
+            let amount = rng.gen_range(amount);
+            inv.add(item.clone(), amount).unwrap();
+        }
+
+        // Spawn drops in a chest
+        if !inv.is_empty() {
+            cmd.spawn((
+                Chest,
+                inv,
+                *transform,
+                Collider::cuboid(0.5, 0.5, 0.5),
+                CollisionLayers {
+                    memberships: PhysicsCategory::Item.into(),
+                    filters: LayerMask::NONE,
+                },
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn update_chests_in_range(
+    mut chests_in_range: Query<(&Transform, &mut ChestsInRange)>,
+    mut chests: Query<Entity, With<Chest>>,
+    query: SpatialQuery,
+) {
+    for (transform, mut chest_in_range) in chests_in_range.iter_mut() {
+        // Reset chests in range
+        chest_in_range.chests.clear();
+        // Cast a shape in our distance of reach and obtain all matching chest entities
+        chest_in_range.chests = query
+            .shape_intersections(
+                &Collider::cylinder(chest_in_range.range, 1f32),
+                transform.translation,
+                Transform::default_z().rotation,
+                SpatialQueryFilter {
+                    mask: LayerMask::from(PhysicsCategory::Item),
+                    excluded_entities: [].into(),
+                },
+            )
+            .iter()
+            // Get only chest entities
+            .filter_map(|item| chests.get_mut(*item).ok())
+            .collect();
     }
 }

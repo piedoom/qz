@@ -1,8 +1,9 @@
+mod drop;
 mod inventory;
 mod repair;
 mod weapon;
 
-pub use {inventory::*, repair::*, weapon::*};
+pub use {drop::*, inventory::*, repair::*, weapon::*};
 
 use bevy::prelude::*;
 
@@ -12,6 +13,17 @@ pub struct Item {
     pub mass: f32,
     pub size: usize,
     pub equipment: Option<EquipmentType>,
+}
+
+/// Item(s) in the world. Uses an inventory for item management
+#[derive(Component, Clone)]
+pub struct Chest;
+
+/// Tracks the chests in range for a particular entity so that the inventory of chests can become available
+#[derive(Component, Clone)]
+pub struct ChestsInRange {
+    pub chests: Vec<Entity>,
+    pub range: f32,
 }
 
 #[derive(Clone)]

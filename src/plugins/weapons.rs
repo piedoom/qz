@@ -1,8 +1,5 @@
 use crate::prelude::*;
-use avian3d::{
-    collision::{Collider, CollidingEntities, CollisionLayers, LayerMask, Sensor},
-    prelude::{LinearVelocity, LockedAxes, RigidBody},
-};
+use avian3d::prelude::*;
 use bevy::prelude::*;
 use rand::Rng;
 
@@ -63,11 +60,17 @@ fn manage_weapons(
                                 // It might be tempting to store information in the memberships, but this has unintended interactions
                                 // Use a component instead for that
                                 CollisionLayers {
-                                    memberships: Layers::Weapon.into(),
-                                    filters: LayerMask::from([Layers::Craft, Layers::Structure]),
+                                    memberships: PhysicsCategory::Weapon.into(),
+                                    filters: LayerMask::from([
+                                        PhysicsCategory::Craft,
+                                        PhysicsCategory::Structure,
+                                    ]),
                                 },
                                 *transform,
                                 RigidBody::Dynamic,
+                                // TODO: Cannot have a sensor with density which leads to errors
+                                // We can use child colliders for this:
+                                // https://github.com/Jondolf/avian/issues/193#issuecomment-1774064306
                                 Sensor,
                                 Collider::sphere(radius),
                                 LinearVelocity(

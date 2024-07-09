@@ -16,6 +16,7 @@ impl Default for Inventory {
     fn default() -> Self {
         Self {
             max_size: 64,
+            // TODO: Make this work
             space: 64,
             items: HashMap::default(),
         }
@@ -91,12 +92,16 @@ impl Inventory {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.items.is_empty()
+    }
+
     pub fn count(&self, item: &Item) -> usize {
         self.items.get(item).cloned().unwrap_or_default()
     }
 
     /// Move items of a type to another inventory
-    pub fn move_to(
+    pub fn transfer(
         &mut self,
         item: &Item,
         inventory: &mut Inventory,

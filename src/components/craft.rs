@@ -67,10 +67,10 @@ impl Default for CraftBundle {
             collider: Collider::sphere(0.5f32),
             mass: Mass(1f32),
             craft: Craft {
-                speed: 20f32,
-                rotation: 400f32,
+                speed: 10f32,
+                rotation: 300f32,
                 brake: 200f32,
-                acceleration: 100f32,
+                acceleration: 40f32,
             },
             locked_axes: LockedAxes::default()
                 .lock_translation_z()
@@ -88,8 +88,8 @@ impl Default for CraftBundle {
             health: 64.into(),
             damage: default(),
             collision_layers: CollisionLayers {
-                memberships: LayerMask::from([Layers::Craft]),
-                filters: LayerMask::from([Layers::Craft, Layers::Weapon]),
+                memberships: LayerMask::from([PhysicsCategory::Craft]),
+                filters: LayerMask::from([PhysicsCategory::Craft, PhysicsCategory::Weapon]),
             },
         }
     }

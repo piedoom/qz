@@ -20,3 +20,13 @@ pub enum EquipEvent {
         manage_inventory: bool,
     },
 }
+
+#[derive(Event)]
+pub enum InventoryEvent {
+    Transfer {
+        from: Entity,
+        to: Entity,
+        item: Item,
+        amount: Option<usize>,
+    },
+}
