@@ -22,39 +22,35 @@ fn apply_player_input(
         With<Player>,
     >,
     mut weapons: Query<&mut Weapon>,
-    // camera: Query<(&Camera, &GlobalTransform)>,
-    // window: Query<&Window, With<PrimaryWindow>>,
+    camera: Query<(&Camera, &GlobalTransform)>,
+    window: Query<&Window, With<PrimaryWindow>>,
 ) {
     for (actions, mut controller, children, transform) in players.iter_mut() {
         controller.angular_thrust = actions.value(&Action::Turn);
         controller.thrust = actions.value(&Action::Thrust);
         controller.brake = actions.value(&Action::Brake);
+
+        // Get cursor position
+        let cursor_position = match camera.get_single() {
+            Ok((camera, camera_transform)) => match window.single().cursor_position() {
+                Some(viewport_position) => {
+                    let ray = camera
+                        .viewport_to_world(camera_transform, viewport_position)
+                        .unwrap();
+                    let toi = ray.intersect_plane(Vec3::ZERO, InfinitePlane3d::new(Vec3::Z));
+                    toi.map(|toi| ray.get_point(toi))
+                }
+                None => None,
+            },
+            Err(_) => None,
+        };
+
         // Get all weapons attached to the player
         for child in children.iter() {
             if let Ok(mut weapon) = weapons.get_mut(*child) {
                 weapon.wants_to_fire = actions.value(&Action::Fire) != 0f32;
+                weapon.target = cursor_position;
             }
         }
-
-        // if let Ok((camera, camera_transform)) = camera.get_single() {
-        //     if let Some(viewport_position) = window.single().cursor_position() {
-        //         let ray = camera
-        //             .viewport_to_world(camera_transform, viewport_position)
-        //             .unwrap();
-        //         let toi = ray.intersect_plane(Vec3::ZERO, InfinitePlane3d::new(Vec3::Z));
-        //         if let Some(toi) = toi {
-        //             let pos = ray.get_point(toi);
-
-        //             controller.angular_thrust = match transform
-        //                 .calculate_turn_direction(Transform::from_translation(pos))
-        //                 .0
-        //             {
-        //                 RotationDirection::Clockwise => 1.,
-        //                 RotationDirection::CounterClockwise => -1.,
-        //                 RotationDirection::None => 0.,
-        //             };
-        //         }
-        //     }
-        // }
     }
 }

@@ -74,10 +74,20 @@ fn manage_equipment(
                     .with_children(|cmd| match &item.equipment {
                         Some(equipment) => match equipment {
                             EquipmentType::Weapon(weapon) => {
-                                cmd.spawn((weapon.clone(), item.clone(), Name::new(item.name)));
+                                cmd.spawn((
+                                    weapon.clone(),
+                                    item.clone(),
+                                    Name::new(item.name),
+                                    Transform::default_z(),
+                                ));
                             }
                             EquipmentType::RepairBot(repair) => {
-                                cmd.spawn((repair.clone(), item.clone(), Name::new(item.name)));
+                                cmd.spawn((
+                                    repair.clone(),
+                                    item.clone(),
+                                    Name::new(item.name),
+                                    Transform::default_z(),
+                                ));
                             }
                         },
                         None => unreachable!(),

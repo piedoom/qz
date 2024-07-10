@@ -42,6 +42,7 @@ fn manage_weapons(
                     spread,
                     shots,
                     lifetime,
+                    tracking,
                 } => {
                     // Check if weapon can fire
                     if weapon.last_fired + recoil <= time.elapsed() {
@@ -52,6 +53,16 @@ fn manage_weapons(
                                 spread_angle =
                                     rand::thread_rng().gen_range(-half_spread..half_spread);
                             }
+
+                            // If we have tracking, find the additional angle
+                            let (direction, added_angle) = {
+                                match weapon.target {
+                                    Some(target) => transform
+                                        .calculate_turn_angle(Transform::from_translation(target)),
+                                    None => (RotationDirection::None, 0f32),
+                                }
+                            };
+
                             // Spawn a projectile
                             cmd.spawn((
                                 Projectile { damage },
@@ -76,7 +87,12 @@ fn manage_weapons(
                                 LinearVelocity(
                                     transform
                                         .rotation
-                                        .mul_quat(Quat::from_rotation_y(spread_angle))
+                                        .mul_quat(Quat::from_axis_angle(
+                                            Vec3::Y,
+                                            (-added_angle.min(tracking).max(-tracking)
+                                                * (f32::from(direction)))
+                                                + spread_angle,
+                                        ))
                                         .mul_vec3(-Vec3::Z * speed)
                                         + linear_velocity.0,
                                 ),

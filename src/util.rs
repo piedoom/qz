@@ -1,4 +1,4 @@
-use std::ops::RangeInclusive;
+use std::{f32::consts::PI, ops::RangeInclusive};
 
 use avian3d::prelude::PhysicsLayer;
 use bevy::prelude::*;
@@ -27,11 +27,11 @@ pub trait TransformExt {
     }
 
     /// Calculate a direction needed to turn to face another transform along with facing accuracy
-    fn calculate_turn_direction(&self, other: impl Into<Transform>) -> (RotationDirection, f32);
+    fn calculate_turn_angle(&self, other: impl Into<Transform>) -> (RotationDirection, f32);
 }
 
 impl TransformExt for Transform {
-    fn calculate_turn_direction(&self, other: impl Into<Transform>) -> (RotationDirection, f32) {
+    fn calculate_turn_angle(&self, other: impl Into<Transform>) -> (RotationDirection, f32) {
         let other = other.into();
         // get the forward vector in 2D
         let forward = (self.rotation * Vec3::Z).xy();
@@ -41,7 +41,6 @@ impl TransformExt for Transform {
 
         // get the dot product between the enemy forward vector and the direction to the player.
         let forward_dot_other = forward.dot(to_other);
-
         let accuracy = (forward_dot_other - 1.0).abs();
 
         // if the dot product is approximately 1.0 then already facing and
@@ -54,9 +53,10 @@ impl TransformExt for Transform {
         let right = (self.rotation * Vec3::X).xy();
         let right_dot_other = right.dot(to_other);
         let rotation_sign = -f32::copysign(1.0, right_dot_other);
+        let angle = forward.angle_between(to_other) * -rotation_sign;
         match rotation_sign > 0f32 {
-            true => (RotationDirection::Clockwise, accuracy),
-            false => (RotationDirection::CounterClockwise, accuracy),
+            true => (RotationDirection::Clockwise, angle),
+            false => (RotationDirection::CounterClockwise, angle),
         }
     }
 }

@@ -5,6 +5,7 @@ use bevy::prelude::*;
 #[derive(Clone, Component)]
 pub struct Weapon {
     pub wants_to_fire: bool,
+    pub target: Option<Vec3>,
     pub last_fired: Duration,
     pub weapon_type: WeaponType,
 }
@@ -12,6 +13,9 @@ pub struct Weapon {
 #[derive(Clone)]
 pub enum WeaponType {
     Projectile {
+        /// Allows the projectile to be fired at a direction other than straight ahead,
+        /// where PI is full sweeping coverage
+        tracking: f32,
         /// Speed of projectile
         speed: f32,
         /// Duration between new projectile shots

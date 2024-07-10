@@ -40,7 +40,7 @@ fn fly_towards_enemy(
         );
 
         if let Ok(enemy_transform) = transforms.get(closest_enemy) {
-            let (turn, accuracy) = transform.calculate_turn_direction(*enemy_transform);
+            let (turn, accuracy) = transform.calculate_turn_angle(*enemy_transform);
             if accuracy < 0.05 && maybe_children.is_some() {
                 for child in maybe_children.unwrap() {
                     if let Ok(mut weapon) = weapons.get_mut(*child) {
