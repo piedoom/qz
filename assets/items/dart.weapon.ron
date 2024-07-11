@@ -1,0 +1,22 @@
+(
+    name: "dart",
+    mass: 200.0,
+    size: 16,
+    equipment: Some(
+        Weapon(
+            Weapon(
+                weapon_type: ProjectileWeapon (
+                    tracking: 0.2,
+                    speed: 10.0,
+                    recoil: 0.5,
+                    spread: 0.1,
+                    shots: 1,
+                    damage: 10,
+                    radius: 0.2,
+                    lifetime: 2.0,
+                    energy: 4,
+                )
+            )
+        )
+    )
+)

@@ -28,7 +28,6 @@ fn react_to_settings_change(
             if let Some(settings) = settings_assets.get(*id) {
                 // Add the settings as a resource
                 cmd.insert_resource(settings.clone());
-
                 // Adjust the window mode
                 window.iter_mut().for_each(|mut window| {
                     window.mode = settings.window.mode;

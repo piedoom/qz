@@ -1,0 +1,12 @@
+(
+    name: "autoweld",
+    mass: 200.0,
+    size: 14,
+    equipment: Some(
+        RepairBot(
+            RepairBot(
+                rate: 0.5,
+            ),
+        ),
+    ),
+)

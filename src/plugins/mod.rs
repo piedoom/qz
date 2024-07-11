@@ -2,9 +2,9 @@ mod ai;
 mod assets;
 mod controllers;
 mod debug;
+mod equipment;
 mod input;
 mod inventory;
-mod repairs;
 mod settings;
 mod ui;
 mod utility;
@@ -43,7 +43,7 @@ impl PluginGroup for ClientPlugins {
             .add(weapons::WeaponsPlugin)
             .add(utility::UtilityPlugin)
             .add(ui::UiPlugin)
-            .add(repairs::RepairsPlugin)
+            .add(equipment::RepairsPlugin)
     }
 }
 

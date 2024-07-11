@@ -4,10 +4,10 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
 pub struct Structure;
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
 pub struct Spawner {
     pub maximum: usize,
     pub delay: Duration,
@@ -15,5 +15,5 @@ pub struct Spawner {
 }
 
 /// Used to track the maximum created from our spawner
-#[derive(Component)]
+#[derive(Component, Reflect)]
 pub struct SpawnedFrom(pub Entity);

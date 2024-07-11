@@ -20,11 +20,18 @@ fn manage_lifetimes(mut cmd: Commands, lifetimes: Query<(Entity, &Lifetime)>, ti
 fn follow_camera(
     mut camera_transform: Query<&mut Transform, (With<Camera>, Without<Player>)>,
     player_transform: Query<&Transform, With<Player>>,
+    time: Res<Time>,
 ) {
+    const FOLLOW_DISTANCE: f32 = 40f32;
+    const SPEED: f32 = 8f32;
     if let Ok(mut camera_transform) = camera_transform.get_single_mut() {
         if let Ok(player_transform) = player_transform.get_single() {
             camera_transform.translation.x = player_transform.translation.x;
             camera_transform.translation.y = player_transform.translation.y;
+            camera_transform.translation.z = camera_transform.translation.z.lerp(
+                player_transform.translation.z + FOLLOW_DISTANCE,
+                time.delta_seconds() * SPEED,
+            );
         }
     }
 }

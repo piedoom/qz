@@ -1,9 +1,6 @@
 use std::time::Duration;
 
-use avian3d::{
-    collision::{Collider, CollisionLayers, LayerMask},
-    prelude::{LockedAxes, Mass, RigidBody},
-};
+use avian3d::prelude::*;
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::*;
 
@@ -13,20 +10,59 @@ pub struct WorldPlugin;
 
 impl Plugin for WorldPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(ClearColor(Color::BLACK))
+        use crate::components;
+        app
+            // .register_type::<components::Alliegance>()
+            .register_type::<components::Chest>()
+            .register_type::<components::ChestsInRange>()
+            .register_type::<components::Controller>()
+            .register_type::<components::Craft>()
+            .register_type::<components::Damage>()
+            .register_type::<components::Destroyed>()
+            .register_type::<components::Drop>()
+            .register_type::<components::DropRate>()
+            .register_type::<components::Equipment>()
+            .register_type::<components::EquipmentType>()
+            // .register_type::<components::Faction>()
+            .register_type::<components::Gate>()
+            .register_type::<components::Health>()
+            .register_type::<components::InRange>()
+            .register_type::<components::Inventory>()
+            .register_type::<components::Item>()
+            .register_type::<components::Lifetime>()
+            .register_type::<components::Npc>()
+            .register_type::<components::Player>()
+            .register_type::<components::Projectile>()
+            .register_type::<components::RepairBot>()
+            .register_type::<components::Slice>()
+            .register_type::<components::SpawnedFrom>()
+            .register_type::<components::Spawner>()
+            .register_type::<components::Structure>()
+            .register_type::<components::Weapon>()
+            .register_type::<components::WeaponType>()
+            .insert_resource(ClearColor(Color::BLACK))
             .add_systems(OnEnter(AppState::main()), setup)
-            .add_systems(Update, manage_spawners);
+            .add_systems(
+                Update,
+                (
+                    manage_spawners,
+                    manage_slice_transforms.after(manage_gates),
+                    manage_gates,
+                )
+                    .run_if(in_state(AppState::main())),
+            );
     }
 }
 
-const METALS: Item = Item {
-    name: "metals",
-    mass: 1.,
-    size: 1,
-    equipment: None,
-};
-
-fn setup(mut cmd: Commands, settings: Res<Settings>) {
+fn setup(
+    mut cmd: Commands,
+    settings: Res<Settings>,
+    library: Res<Library>,
+    items: Res<Assets<Item>>,
+) {
+    let item = |name: &str| -> Option<&Item> {
+        items.get(library.items.get(&format!("items/{}.ron", name)).unwrap())
+    };
     let input_map = InputMap::default()
         .with(
             Action::Turn,
@@ -54,67 +90,13 @@ fn setup(mut cmd: Commands, settings: Res<Settings>) {
                 allies: Faction::PLAYER,
                 enemies: Faction::ENEMY,
             },
-            inventory: Inventory::default()
-                .with(METALS, 10)
-                .unwrap()
-                .with(
-                    Item {
-                        name: "gun2",
-                        mass: 1f32,
-                        size: 1,
-                        equipment: Some(EquipmentType::Weapon(Weapon {
-                            weapon_type: WeaponType::Projectile {
-                                speed: 18.0,
-                                recoil: Duration::from_millis(20),
-                                damage: 1,
-                                radius: 0.05,
-                                spread: 1f32.to_radians(),
-                                shots: 1,
-                                lifetime: Duration::from_secs(4),
-                                tracking: 20f32.to_radians(),
-                            },
-                            wants_to_fire: default(),
-                            target: None,
-                            last_fired: default(),
-                        })),
-                    },
-                    1,
-                )
-                .unwrap(),
+            inventory: Inventory::default(),
             equipment: Equipment {
                 inventory: Inventory::default()
-                    .with(
-                        Item {
-                            name: "gun",
-                            mass: 1f32,
-                            size: 1,
-                            equipment: Some(EquipmentType::Weapon(Weapon {
-                                weapon_type: WeaponType::Projectile {
-                                    speed: 10.0,
-                                    recoil: Duration::from_millis(100),
-                                    damage: 20,
-                                    radius: 0.1,
-                                    spread: 5f32.to_radians(),
-                                    shots: 2,
-                                    lifetime: Duration::from_secs(4),
-                                    tracking: 20f32.to_radians(),
-                                },
-                                target: default(),
-                                last_fired: default(),
-                                wants_to_fire: false,
-                            })),
-                        },
-                        1,
-                    )
-                    .unwrap()
-                    .with(
-                        Item {
-                            name: "repair",
-                            mass: 1f32,
-                            size: 1,
-                            equipment: Some(EquipmentType::RepairBot(RepairBot { rate: 5f32 })),
-                        },
-                        1,
+                    .with_many(
+                        &["minireactor.energy", "dart.weapon", "autoweld.repair"],
+                        &items,
+                        &library,
                     )
                     .unwrap(),
             },
@@ -149,39 +131,115 @@ fn setup(mut cmd: Commands, settings: Res<Settings>) {
     ));
 
     // spawn nest
+    let spawn_nest = |cmd: &mut Commands, position: Vec2, slice: usize| {
+        cmd.spawn((
+            Structure,
+            Spawner {
+                maximum: 4,
+                delay: Duration::from_secs(3),
+                last_spawned: default(),
+            },
+            Slice(slice),
+            Health::from(500),
+            Damage::default(),
+            RigidBody::Dynamic,
+            Mass(100000f32),
+            Collider::sphere(1f32),
+            Alliegance {
+                faction: Faction::ENEMY,
+                allies: Faction::ENEMY,
+                enemies: Faction::PLAYER,
+            },
+            CollisionLayers {
+                memberships: LayerMask::from([PhysicsCategory::Structure]),
+                filters: LayerMask::from([PhysicsCategory::Weapon, PhysicsCategory::Structure]),
+            },
+            LockedAxes::ROTATION_LOCKED,
+            Transform::default_z().with_translation(position.extend(0f32)),
+        ));
+    };
+
+    // spawn gate
     cmd.spawn((
         Structure,
-        Spawner {
-            maximum: 4,
-            delay: Duration::from_secs(3),
-            last_spawned: default(),
-        },
-        Health::from(500),
-        Damage::default(),
-        RigidBody::Dynamic,
-        Mass(100000f32),
-        Collider::sphere(1f32),
-        Alliegance {
-            faction: Faction::ENEMY,
-            allies: Faction::ENEMY,
-            enemies: Faction::PLAYER,
-        },
+        Sensor,
+        Collider::sphere(2.0),
         CollisionLayers {
-            memberships: LayerMask::from([PhysicsCategory::Structure]),
-            filters: LayerMask::from([PhysicsCategory::Weapon, PhysicsCategory::Structure]),
+            memberships: LayerMask::ALL,
+            filters: LayerMask::ALL,
         },
-        LockedAxes::ROTATION_LOCKED,
-        Transform::default_z().with_translation(Vec3::new(10f32, 10f32, 0f32)),
+        Slice(0),
+        Gate::new(Slice(1)),
+        Transform::from_xyz(-10f32, -10f32, 0f32),
     ));
+
+    // spawn gate
+    cmd.spawn((
+        Structure,
+        Sensor,
+        Collider::sphere(2.0),
+        CollisionLayers {
+            memberships: LayerMask::ALL,
+            filters: LayerMask::ALL,
+        },
+        Slice(1),
+        Gate::new(Slice(2)),
+        Transform::from_xyz(10f32, 5f32, 0f32),
+    ));
+
+    // spawn gate
+    cmd.spawn((
+        Structure,
+        Sensor,
+        Collider::sphere(2.0),
+        CollisionLayers {
+            memberships: LayerMask::ALL,
+            filters: LayerMask::ALL,
+        },
+        Slice(2),
+        Gate::new(Slice(0)),
+        Transform::from_xyz(-10f32, 15f32, 0f32),
+    ));
+
+    spawn_nest(&mut cmd, (13f32, 8f32).into(), 0);
+    spawn_nest(&mut cmd, (10f32, -8f32).into(), 1);
+    spawn_nest(&mut cmd, (-4f32, 2f32).into(), 1);
+    spawn_nest(&mut cmd, (-10f32, 8f32).into(), 2);
+    spawn_nest(&mut cmd, (4f32, 2f32).into(), 2);
+    spawn_nest(&mut cmd, (6f32, 4f32).into(), 2);
+}
+
+fn manage_slice_transforms(
+    mut slices: Query<
+        (&mut Transform, &Slice, Option<&mut Position>),
+        Or<(Added<Transform>, Changed<Slice>)>,
+    >,
+) {
+    for (mut transform, slice, maybe_position) in slices.iter_mut() {
+        let z = **slice as f32 * -DISTANCE_BETWEEN_SLICES;
+        transform.translation.z = z;
+        if let Some(mut position) = maybe_position {
+            position.z = z;
+        }
+    }
 }
 
 fn manage_spawners(
     mut cmd: Commands,
-    mut spawners: Query<(Entity, &mut Spawner, &Transform), Without<Destroyed>>,
+    mut spawners: Query<(Entity, &mut Spawner, &Transform, &Slice), Without<Destroyed>>,
     spawned_from: Query<&SpawnedFrom, Without<Destroyed>>,
+    library: Res<Library>,
+    items: Res<Assets<Item>>,
     time: Res<Time>,
 ) {
-    for (entity, mut spawner, transform) in spawners.iter_mut() {
+    let metals: Item = Item {
+        name: String::from("metals"),
+        mass: 1.,
+        size: 1,
+        equipment: None,
+    };
+
+    for (entity, mut spawner, transform, slice) in spawners.iter_mut() {
         let new_time = spawner.last_spawned + spawner.delay;
         if time.elapsed() >= new_time {
             if spawned_from.iter().filter(|s| s.0 == entity).count() < spawner.maximum {
@@ -201,31 +259,14 @@ fn manage_spawners(
                             allies: Faction::ENEMY,
                             enemies: Faction::PLAYER,
                         },
+                        slice: slice.clone(),
                         transform: *transform,
                         equipment: Equipment {
                             inventory: Inventory::default()
-                                .with(
-                                    Item {
-                                        name: "gun",
-                                        mass: 1f32,
-                                        size: 1,
-                                        equipment: Some(EquipmentType::Weapon(Weapon {
-                                            weapon_type: WeaponType::Projectile {
-                                                speed: 8.0,
-                                                recoil: Duration::from_millis(400),
-                                                damage: 5,
-                                                spread: 20f32.to_radians(),
-                                                shots: 1,
-                                                radius: 0.1,
-                                                lifetime: Duration::from_secs(2),
-                                                tracking: 45f32.to_radians(),
-                                            },
-                                            target: default(),
-                                            last_fired: default(),
-                                            wants_to_fire: false,
-                                        })),
-                                    },
-                                    1,
+                                .with_many(
+                                    &["minireactor.energy", "dart.weapon", "autoweld.repair"],
+                                    &items,
+                                    &library,
                                 )
                                 .unwrap(),
                         },
@@ -234,7 +275,7 @@ fn manage_spawners(
                     Npc,
                     Drop {
                         items: [(
-                            METALS,
+                            metals.clone(),
                             DropRate {
                                 amount: 10..=20,
                                 d: 3,
@@ -245,6 +286,17 @@ fn manage_spawners(
                 ));
             }
             spawner.last_spawned = time.elapsed();
+        }
+    }
+}
+
+/// If anything with a collider comes in contact with the gate, it will change slices
+fn manage_gates(gates: Query<(&Gate, &CollidingEntities)>, mut objects: Query<&mut Slice>) {
+    for (gate, collisions) in gates.iter() {
+        for collision in collisions.iter() {
+            if let Ok(mut slice) = objects.get_mut(*collision) {
+                **slice = ***gate;
+            }
         }
     }
 }

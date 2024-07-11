@@ -3,7 +3,7 @@
 use bevy::prelude::*;
 
 /// Thruster control
-#[derive(Component, Default)]
+#[derive(Component, Default, Reflect)]
 pub struct Controller {
     /// Linear thrust as a normalized value
     pub thrust: f32,

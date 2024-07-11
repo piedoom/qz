@@ -37,7 +37,8 @@ fn apply_player_input(
                     let ray = camera
                         .viewport_to_world(camera_transform, viewport_position)
                         .unwrap();
-                    let toi = ray.intersect_plane(Vec3::ZERO, InfinitePlane3d::new(Vec3::Z));
+                    let toi =
+                        ray.intersect_plane(transform.translation, InfinitePlane3d::new(Vec3::Z));
                     toi.map(|toi| ray.get_point(toi))
                 }
                 None => None,

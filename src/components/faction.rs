@@ -3,7 +3,7 @@
 use bevy::prelude::*;
 
 /// Tracks things in a specified range
-#[derive(Component)]
+#[derive(Component, Reflect)]
 pub struct InRange {
     pub range: f32,
     pub allies: Vec<Entity>,

@@ -1,4 +1,4 @@
-use avian3d::collision::Collider;
+use avian3d::prelude::*;
 use bevy::prelude::*;
 
 use crate::prelude::*;
@@ -13,11 +13,12 @@ impl Plugin for DebugPlugin {
                 draw_controllers,
                 draw_projectiles,
                 draw_health_and_damage,
-                draw_reference_grid,
+                draw_slices,
                 draw_structures,
                 draw_destroyed,
                 draw_chests,
                 draw_active_chests,
+                draw_gates,
             ),
         );
     }
@@ -33,10 +34,7 @@ fn draw_controllers(
         let pos = transform.translation;
         let f = transform.forward();
         let mut color = match players.get(entity).is_ok() {
-            true => {
-                gizmos.line(pos, pos + (*f * 16f32), Color::srgba(1., 1., 1., 0.1));
-                Color::srgb(0., 1., 0.)
-            }
+            true => Color::srgb(0., 1., 0.),
             false => Color::WHITE,
         };
         if destroyed.get(entity).is_ok() {
@@ -47,33 +45,18 @@ fn draw_controllers(
     }
 }
 
-fn draw_reference_grid(mut gizmos: Gizmos) {
-    // get 2d point
-    gizmos.grid_2d(
-        Vec2::ZERO,
-        0f32,
-        UVec2::new(64, 64),
-        Vec2::splat(8f32),
-        Color::srgba(1f32, 1f32, 1f32, 0.05f32),
-    );
-    gizmos
-        .grid_3d(
-            Vec3::new(0f32, 0f32, -64f32),
-            default(),
-            UVec3::new(128, 128, 0),
-            Vec3::splat(8f32),
-            Color::srgba(1f32, 1f32, 1f32, 0.01f32),
-        )
-        .outer_edges();
-    gizmos
-        .grid_3d(
-            Vec3::new(0f32, 0f32, -128f32),
-            default(),
-            UVec3::new(256, 256, 0),
-            Vec3::splat(8f32),
-            Color::srgba(1f32, 1f32, 1f32, 0.01f32),
-        )
-        .outer_edges();
+fn draw_slices(mut gizmos: Gizmos) {
+    for i in 0..3 {
+        gizmos
+            .grid_3d(
+                Vec3::new(0f32, 0f32, -i as f32 * DISTANCE_BETWEEN_SLICES),
+                default(),
+                UVec3::new(128, 128, 0),
+                Vec3::splat(16f32),
+                Color::srgba(1f32, 1f32, 1f32, 0.02f32),
+            )
+            .outer_edges();
+    }
 }
 
 fn draw_projectiles(
@@ -95,9 +78,9 @@ fn draw_health_and_damage(
     health_and_damage: Query<(&Transform, &Health, &Damage), Without<Destroyed>>,
 ) {
     for (transform, health, damage) in health_and_damage.iter() {
-        gizmos.rect_2d(
-            transform.translation.truncate(),
-            0f32,
+        gizmos.rect(
+            transform.translation,
+            default(),
             Vec2::new((**health as f32 - **damage) / **health as f32, 0.2),
             Color::srgb(0.0, 1.0, 0.0),
         );
@@ -125,10 +108,11 @@ fn draw_destroyed(mut gizmos: Gizmos, destroyed: Query<&Transform, With<Destroye
     const COLOR: Color = Color::srgb(1., 0., 0.);
     for transform in destroyed.iter() {
         let rect = Rect::from_center_size(transform.translation.truncate(), Vec2::splat(1.5));
-        gizmos.line_2d(rect.min, rect.max, COLOR);
-        gizmos.line_2d(
-            (rect.min.x, rect.max.y).into(),
-            (rect.max.x, rect.min.y).into(),
+        let z = transform.translation.z;
+        gizmos.line(rect.min.extend(z), rect.max.extend(z), COLOR);
+        gizmos.line(
+            (rect.min.x, rect.max.y, z).into(),
+            (rect.max.x, rect.min.y, z).into(),
             COLOR,
         );
     }
@@ -155,5 +139,23 @@ fn draw_active_chests(
             let transform = transforms.get(*chest).unwrap();
             gizmos.circle(transform.translation, Dir3::Z, 1f32, COLOR);
         }
+    }
+}
+
+fn draw_gates(mut gizmos: Gizmos, gates: Query<(&Gate, &Slice, &Transform, &Collider)>) {
+    const COLOR: Color = Color::srgb(0.7, 0.2, 1.0);
+    for (gate, slice, transform, collider) in gates.iter() {
+        gizmos.sphere(
+            transform.translation,
+            default(),
+            collider.shape().as_ball().unwrap().radius,
+            COLOR,
+        );
+        let layer_difference = ***gate as f32 - **slice as f32;
+        gizmos.arrow(
+            transform.translation,
+            transform.translation - (Vec3::Z * (DISTANCE_BETWEEN_SLICES * layer_difference)),
+            COLOR,
+        );
     }
 }

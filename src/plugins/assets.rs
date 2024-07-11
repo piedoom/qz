@@ -9,6 +9,11 @@ pub struct AssetsPlugin;
 impl Plugin for AssetsPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(RonAssetPlugin::<Settings>::new(&["settings.ron"]))
+            .add_plugins(RonAssetPlugin::<Item>::new(&[
+                "weapon.ron",
+                "repair.ron",
+                "energy.ron",
+            ]))
             // Continue to the main game state once everything is loaded in, so
             // we can be sure all assets are loaded first
             .add_loading_state(

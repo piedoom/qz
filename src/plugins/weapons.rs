@@ -1,3 +1,5 @@
+use std::{slice::SliceIndex, time::Duration};
+
 use crate::prelude::*;
 use avian3d::prelude::*;
 use bevy::prelude::*;
@@ -18,93 +20,108 @@ impl Plugin for WeaponsPlugin {
 fn manage_weapons(
     mut cmd: Commands,
     mut weapons: Query<(&Parent, &mut Weapon)>,
-    destroyed: Query<&Destroyed>,
-    transforms: Query<&Transform>,
-    alliegances: Query<&Alliegance>,
-    linear_velocity: Query<&LinearVelocity>,
+    mut energy: Query<&mut Energy>,
+    parent_components: Query<(
+        &Transform,
+        &Alliegance,
+        &Slice,
+        &LinearVelocity,
+        Option<&Destroyed>,
+        &Children,
+    )>,
     time: Res<Time>,
 ) {
     for (parent, mut weapon) in weapons.iter_mut() {
-        // Skip destroyed entities
-        if destroyed.get(parent.get()).is_ok() {
-            continue;
-        }
-        let linear_velocity = linear_velocity.get(parent.get()).unwrap();
-        let transform = transforms.get(parent.get()).unwrap();
-        let alliegance = alliegances.get(parent.get()).unwrap();
-        if weapon.wants_to_fire {
-            match weapon.weapon_type {
-                WeaponType::Projectile {
-                    speed,
-                    recoil,
-                    damage,
-                    radius,
-                    spread,
-                    shots,
-                    lifetime,
-                    tracking,
-                } => {
-                    // Check if weapon can fire
-                    if weapon.last_fired + recoil <= time.elapsed() {
-                        for _ in 0..shots {
-                            let mut spread_angle = 0f32;
-                            if spread != 0f32 {
-                                let half_spread = spread / 2f32;
-                                spread_angle =
-                                    rand::thread_rng().gen_range(-half_spread..half_spread);
-                            }
+        if let Ok((transform, alliegance, slice, linear_velocity, destroyed, children)) =
+            parent_components.get(parent.get())
+        {
+            // Skip destroyed entities
+            if destroyed.is_some() {
+                continue;
+            }
 
-                            // If we have tracking, find the additional angle
-                            let (direction, added_angle) = {
-                                match weapon.target {
-                                    Some(target) => transform
-                                        .calculate_turn_angle(Transform::from_translation(target)),
-                                    None => (RotationDirection::None, 0f32),
+            // Get energy
+            for child in children.iter() {
+                if let Ok(mut craft_energy) = energy.get_mut(*child) {
+                    if weapon.wants_to_fire {
+                        match weapon.weapon_type {
+                            WeaponType::ProjectileWeapon {
+                                speed,
+                                recoil,
+                                damage,
+                                radius,
+                                spread,
+                                shots,
+                                lifetime,
+                                tracking,
+                                energy,
+                            } => {
+                                // Check if weapon can fire
+
+                                if weapon.last_fired + Duration::from_secs_f32(recoil)
+                                    <= time.elapsed()
+                                    && craft_energy.consume(energy as f32).is_ok()
+                                {
+                                    for _ in 0..shots {
+                                        let mut spread_angle = 0f32;
+                                        if spread != 0f32 {
+                                            let half_spread = spread / 2f32;
+                                            spread_angle = rand::thread_rng()
+                                                .gen_range(-half_spread..half_spread);
+                                        }
+
+                                        // If we have tracking, find the additional angle
+                                        let (direction, added_angle) = {
+                                            match weapon.target {
+                                                Some(target) => transform.calculate_turn_angle(
+                                                    Transform::from_translation(target),
+                                                ),
+                                                None => (RotationDirection::None, 0f32),
+                                            }
+                                        };
+
+                                        // Spawn a projectile
+                                        cmd.spawn((
+                                            LockedAxes::new().lock_translation_z(),
+                                            *transform,
+                                            RigidBody::Dynamic,
+                                            Mass(1f32),
+                                            LinearVelocity(
+                                                transform
+                                                    .rotation
+                                                    .mul_quat(Quat::from_axis_angle(
+                                                        Vec3::Y,
+                                                        (-added_angle.min(tracking).max(-tracking)
+                                                            * (f32::from(direction)))
+                                                            + spread_angle,
+                                                    ))
+                                                    .mul_vec3(-Vec3::Z * speed)
+                                                    + linear_velocity.0,
+                                            ),
+                                            Lifetime {
+                                                created: time.elapsed(),
+                                                lifetime: Duration::from_secs_f32(lifetime),
+                                            },
+                                            Projectile { damage },
+                                            slice.clone(),
+                                            *alliegance,
+                                            Sensor,
+                                            Collider::sphere(radius),
+                                            CollisionLayers {
+                                                memberships: PhysicsCategory::Weapon.into(),
+                                                filters: LayerMask::from([
+                                                    PhysicsCategory::Craft,
+                                                    PhysicsCategory::Structure,
+                                                ]),
+                                            },
+                                        ));
+                                    }
+                                    // Set the last fired time and set "wants to fire" to false
+                                    weapon.last_fired = time.elapsed();
+                                    weapon.wants_to_fire = false;
                                 }
-                            };
-
-                            // Spawn a projectile
-                            cmd.spawn((
-                                Projectile { damage },
-                                *alliegance,
-                                LockedAxes::new().lock_translation_z(),
-                                // It might be tempting to store information in the memberships, but this has unintended interactions
-                                // Use a component instead for that
-                                CollisionLayers {
-                                    memberships: PhysicsCategory::Weapon.into(),
-                                    filters: LayerMask::from([
-                                        PhysicsCategory::Craft,
-                                        PhysicsCategory::Structure,
-                                    ]),
-                                },
-                                *transform,
-                                RigidBody::Dynamic,
-                                // TODO: Cannot have a sensor with density which leads to errors
-                                // We can use child colliders for this:
-                                // https://github.com/Jondolf/avian/issues/193#issuecomment-1774064306
-                                Sensor,
-                                Collider::sphere(radius),
-                                LinearVelocity(
-                                    transform
-                                        .rotation
-                                        .mul_quat(Quat::from_axis_angle(
-                                            Vec3::Y,
-                                            (-added_angle.min(tracking).max(-tracking)
-                                                * (f32::from(direction)))
-                                                + spread_angle,
-                                        ))
-                                        .mul_vec3(-Vec3::Z * speed)
-                                        + linear_velocity.0,
-                                ),
-                                Lifetime {
-                                    created: time.elapsed(),
-                                    lifetime,
-                                },
-                            ));
+                            }
                         }
-                        // Set the last fired time and set "wants to fire" to false
-                        weapon.last_fired = time.elapsed();
-                        weapon.wants_to_fire = false;
                     }
                 }
             }

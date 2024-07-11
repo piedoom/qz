@@ -1,3 +1,4 @@
+#![feature(result_flattening)]
 use bevy::prelude::*;
 use bevy_template::prelude::*;
 

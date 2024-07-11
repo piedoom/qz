@@ -1,7 +1,11 @@
-use std::{f32::consts::PI, ops::RangeInclusive};
+use std::ops::RangeInclusive;
 
 use avian3d::prelude::PhysicsLayer;
 use bevy::prelude::*;
+
+use crate::{prelude::*, resources::Library};
+
+pub const DISTANCE_BETWEEN_SLICES: f32 = 70f32;
 
 /// Additional methods for the [`RangeInclusive`] type
 pub trait RangeInclusiveExt<T> {
@@ -85,5 +89,10 @@ pub enum PhysicsCategory {
     Item,
 }
 
-#[derive(Component, Deref, DerefMut)]
-pub struct WorldLayer(usize);
+pub fn item<'a>(
+    name: impl AsRef<str>,
+    items: &'a Assets<Item>,
+    library: &Library,
+) -> Option<&'a Item> {
+    items.get(library.items.get(&format!("items/{}.ron", name.as_ref()))?)
+}

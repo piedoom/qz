@@ -4,7 +4,7 @@ use thiserror::Error;
 use crate::prelude::*;
 
 /// only `items` count towards the `max_size`. Equipment does not affect this.
-#[derive(Component)]
+#[derive(Component, Reflect)]
 pub struct Inventory {
     pub max_size: usize,
     /// Starts at max_size and decrements with every item
@@ -26,6 +26,23 @@ impl Default for Inventory {
 impl Inventory {
     pub fn with(mut self, item: Item, amount: usize) -> Result<Self, InventoryError> {
         self.add(item, amount)?;
+        Ok(self)
+    }
+
+    pub fn with_many(
+        mut self,
+        item_names: &[&'static str],
+        items: &Assets<Item>,
+        library: &Library,
+    ) -> Result<Self, InventoryError> {
+        for item_name in item_names.iter() {
+            item(item_name, items, library)
+                .map(|x| self.add(x.clone(), 1))
+                .ok_or(InventoryError::ItemNotFound {
+                    name: item_name.to_string(),
+                })
+                .flatten()?;
+        }
         Ok(self)
     }
 
@@ -115,7 +132,7 @@ impl Inventory {
 
 /// Equipment needs to use the parent/child tree. This allows
 /// for multiple equips of the same type to be used at once
-#[derive(Default, Component)]
+#[derive(Default, Component, Reflect)]
 pub struct Equipment {
     pub inventory: Inventory,
 }
@@ -136,4 +153,6 @@ pub enum InventoryError {
     Unequippable { item_name: String },
     #[error("missing either an `Inventory` or `Equipment` component on the provided entity")]
     Unqueriable,
+    #[error("could not find requested item {name}")]
+    ItemNotFound { name: String },
 }

@@ -3,9 +3,9 @@
 use bevy::prelude::*;
 
 /// Player marker
-#[derive(Component)]
+#[derive(Component, Reflect)]
 pub struct Player;
 
 /// NPC marker
-#[derive(Component)]
+#[derive(Component, Reflect)]
 pub struct Npc;

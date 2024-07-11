@@ -77,7 +77,7 @@ fn manage_equipment(
                                 cmd.spawn((
                                     weapon.clone(),
                                     item.clone(),
-                                    Name::new(item.name),
+                                    Name::new(item.name.clone()),
                                     Transform::default_z(),
                                 ));
                             }
@@ -85,7 +85,15 @@ fn manage_equipment(
                                 cmd.spawn((
                                     repair.clone(),
                                     item.clone(),
-                                    Name::new(item.name),
+                                    Name::new(item.name.clone()),
+                                    Transform::default_z(),
+                                ));
+                            }
+                            EquipmentType::Energy(energy) => {
+                                cmd.spawn((
+                                    energy.clone(),
+                                    item.clone(),
+                                    Name::new(item.name.clone()),
                                     Transform::default_z(),
                                 ));
                             }

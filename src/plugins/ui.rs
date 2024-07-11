@@ -1,6 +1,7 @@
 use crate::prelude::*;
 use bevy::prelude::*;
 use bevy_egui::*;
+use egui::Slider;
 use events::{EquipEvent, InventoryEvent};
 
 pub struct UiPlugin;
@@ -16,10 +17,37 @@ fn draw_hud(
     mut events: EventWriter<EquipEvent>,
     mut inv_events: EventWriter<InventoryEvent>,
     inventories: Query<&Inventory>,
-    player: Query<(Entity, &Inventory, &Equipment, &ChestsInRange), With<Player>>,
+    energy: Query<&Energy>,
+    children: Query<&Children>,
+    player: Query<
+        (
+            Entity,
+            &Inventory,
+            &Equipment,
+            &ChestsInRange,
+            &Health,
+            &Damage,
+        ),
+        With<Player>,
+    >,
 ) {
     egui::SidePanel::new(egui::panel::Side::Left, "hud").show(contexts.ctx_mut(), |ui| {
-        for (player_entity, player_inventory, equipment, chests_in_range) in player.iter() {
+        for (player_entity, player_inventory, equipment, chests_in_range, health, damage) in
+            player.iter()
+        {
+            ui.heading("Status");
+            ui.add(Slider::new(
+                &mut (**health as f32 - **damage),
+                0f32..=**health as f32,
+            ));
+            for child in children.iter_descendants(player_entity) {
+                if let Ok(energy) = energy.get(child) {
+                    ui.add(Slider::new(
+                        &mut energy.charge.clone(),
+                        0f32..=energy.capacity as f32,
+                    ));
+                }
+            }
             ui.heading("Equipment");
             for (item, count) in equipment.inventory.items.iter() {
                 ui.vertical(|ui| {

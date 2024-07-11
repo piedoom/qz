@@ -1,35 +1,40 @@
 mod drop;
+mod energy;
 mod inventory;
 mod repair;
 mod weapon;
 
-pub use {drop::*, inventory::*, repair::*, weapon::*};
+pub use {drop::*, energy::*, inventory::*, repair::*, weapon::*};
 
-use bevy::prelude::*;
+use {
+    bevy::prelude::*,
+    serde::{Deserialize, Serialize},
+};
 
-#[derive(Clone, Component)]
+#[derive(Debug, Clone, Component, Reflect, Asset, Serialize, Deserialize)]
 pub struct Item {
-    pub name: &'static str,
+    pub name: String,
     pub mass: f32,
     pub size: usize,
     pub equipment: Option<EquipmentType>,
 }
 
 /// Item(s) in the world. Uses an inventory for item management
-#[derive(Component, Clone)]
+#[derive(Component, Reflect, Clone)]
 pub struct Chest;
 
 /// Tracks the chests in range for a particular entity so that the inventory of chests can become available
-#[derive(Component, Clone)]
+#[derive(Component, Reflect, Clone)]
 pub struct ChestsInRange {
     pub chests: Vec<Entity>,
     pub range: f32,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Reflect, Clone, Serialize, Deserialize)]
 pub enum EquipmentType {
     Weapon(Weapon),
     RepairBot(RepairBot),
+    Energy(Energy),
 }
 
 impl PartialEq for Item {

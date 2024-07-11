@@ -5,15 +5,15 @@ use bevy::prelude::*;
 
 use crate::prelude::*;
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
 pub struct Destroyed;
 
-#[derive(Component, Deref, DerefMut)]
+#[derive(Component, Reflect, Deref, DerefMut)]
 pub struct Health(usize);
 
 /// Damage inflicted. Used in tandem with [`Health`]. Damage is a float instead of an integer, as
 /// repairs may repair fractional amounts
-#[derive(Component, Deref, DerefMut, Default)]
+#[derive(Component, Reflect, Deref, DerefMut, Default)]
 pub struct Damage(f32);
 
 impl From<usize> for Health {
@@ -29,7 +29,7 @@ impl From<f32> for Damage {
 }
 
 /// Moveable thing
-#[derive(Component)]
+#[derive(Component, Reflect)]
 pub struct Craft {
     /// Top speed
     pub speed: f32,
@@ -57,6 +57,7 @@ pub struct CraftBundle {
     pub health: Health,
     pub damage: Damage,
     pub collision_layers: CollisionLayers,
+    pub slice: Slice,
 }
 
 impl Default for CraftBundle {
@@ -91,6 +92,7 @@ impl Default for CraftBundle {
                 memberships: LayerMask::from([PhysicsCategory::Craft]),
                 filters: LayerMask::from([PhysicsCategory::Craft, PhysicsCategory::Weapon]),
             },
+            slice: default(),
         }
     }
 }
