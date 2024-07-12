@@ -1,11 +1,11 @@
 (
     name: "pest",
-    speed: 10.0,
-    rotation: 400.0,
-    brake: 400.0,
-    acceleration: 70.0,
-    health: 12,
-    size: 1.0,
-    mass: 2500.0,
+    speed: 6.0,
+    rotation: 200.0,
+    brake: 100.0,
+    acceleration: 40.0,
+    health: 24,
+    size: 0.5,
+    mass: 250.0,
     capacity: 55,
 )

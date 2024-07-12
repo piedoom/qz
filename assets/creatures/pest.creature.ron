@@ -9,7 +9,7 @@
         ("scrap_metal.item", 10),
     ],
     equipped: [
-        ("dart.weapon", 1),
+        ("shotgun.weapon", 1),
         ("minireactor.energy", 1),
     ],
 )

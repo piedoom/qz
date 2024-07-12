@@ -316,7 +316,7 @@ fn manage_world_events(
                     .filter_map(|(drop_name, drop_rate)| {
                         library
                             .items
-                            .get(&drop_name)
+                            .get(&format!("items/{}.ron", drop_name))
                             .and_then(|item| items.get(item).cloned())
                             .and_then(|item| Some((item, drop_rate)))
                     })
