@@ -13,10 +13,10 @@ impl Plugin for InventoryPlugin {
             .add_systems(
                 Update,
                 (
-                    manage_equipment.pipe(handle_errors),
-                    manage_inventory.pipe(handle_errors),
+                    manage_equipment.pipe(handle_errors::<InventoryError>),
+                    manage_inventory.pipe(handle_errors::<InventoryError>),
                     init_equipment,
-                    manage_drops.pipe(handle_errors),
+                    manage_drops.pipe(handle_errors::<InventoryError>),
                     update_chests_in_range,
                 ),
             );
@@ -131,12 +131,6 @@ fn manage_equipment(
     Ok(())
 }
 
-fn handle_errors(In(result): In<Result<(), InventoryError>>) {
-    if let Err(e) = result {
-        eprintln!("{e}");
-    }
-}
-
 /// If entities are initialized with an equipment component instead of using events, we won't actually
 /// add child entities. This system initializes equipment entities with child entities so we can enable this.
 fn init_equipment(
@@ -159,16 +153,16 @@ fn init_equipment(
 fn manage_drops(
     mut cmd: Commands,
     // Query for just-destroyed entities with a `Drop` component
-    drops: Query<(&Drop, &Transform), Added<Destroyed>>,
+    drops: Query<(&Drops, &Transform), Added<Destroyed>>,
 ) -> Result<(), InventoryError> {
-    for (drop, transform) in drops.iter() {
+    for (drops, transform) in drops.iter() {
         let mut inv = Inventory::default();
         // Filter with probabilities to find the items we will actually drop
         let mut rng = rand::thread_rng();
 
-        let items_to_drop = drop.items.iter().filter_map(|(it, p)| {
+        let items_to_drop = drops.iter().filter_map(|(it, p)| {
             if rng.gen_ratio(1, p.d as u32) {
-                Some((it, p.amount.clone()))
+                Some((it, p))
             } else {
                 None
             }
@@ -176,7 +170,7 @@ fn manage_drops(
 
         let mut rng = rand::thread_rng();
         for (item, amount) in items_to_drop {
-            let amount = rng.gen_range(amount);
+            let amount = rng.gen_range(amount.min..=amount.max);
             inv.add(item.clone(), amount).unwrap();
         }
 

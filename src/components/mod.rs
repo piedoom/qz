@@ -1,3 +1,4 @@
+mod ai;
 mod controller;
 mod craft;
 mod faction;
@@ -8,6 +9,6 @@ mod utility;
 mod world;
 
 pub use {
-    controller::Controller, craft::*, faction::*, items::*, player::*, structure::*, utility::*,
-    world::*,
+    ai::*, controller::Controller, craft::*, faction::*, items::*, player::*, structure::*,
+    utility::*, world::*,
 };

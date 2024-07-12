@@ -1,19 +1,19 @@
-use std::ops::RangeInclusive;
-
 use bevy::{prelude::*, utils::HashMap};
+use serde::{Deserialize, Serialize};
 
 use crate::prelude::*;
 
 /// Items to drop upon destruction
-#[derive(Component, Reflect)]
-pub struct Drop {
+#[derive(Debug, Clone, Component, Reflect, Deserialize, Serialize, Deref, DerefMut)]
+pub struct Drops(
     /// Items to drop mapped to a range of amount to drop normalized value determining drop rate
-    pub items: HashMap<Item, DropRate>,
-}
+    pub HashMap<Item, DropRate>,
+);
 
-#[derive(Reflect, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Reflect, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct DropRate {
-    pub amount: RangeInclusive<usize>,
+    pub min: usize,
+    pub max: usize,
     /// 1 in X chance to drop. 1 will always drop.
     pub d: usize,
 }

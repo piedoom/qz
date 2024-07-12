@@ -96,3 +96,12 @@ pub fn item<'a>(
 ) -> Option<&'a Item> {
     items.get(library.items.get(&format!("items/{}.ron", name.as_ref()))?)
 }
+
+pub fn handle_errors<E>(In(result): In<Result<(), E>>)
+where
+    E: std::fmt::Display,
+{
+    if let Err(e) = result {
+        eprintln!("{e}");
+    }
+}

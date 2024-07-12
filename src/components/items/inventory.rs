@@ -1,13 +1,17 @@
 use bevy::{prelude::*, utils::HashMap};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::prelude::*;
 
 /// only `items` count towards the `max_size`. Equipment does not affect this.
-#[derive(Component, Reflect)]
+#[derive(Debug, Clone, Component, Reflect, Serialize, Deserialize)]
 pub struct Inventory {
-    pub max_size: usize,
+    /// Maximum size of the inventory, determined by the craft (so it is not serialized)
+    #[serde(default)]
+    pub capacity: usize,
     /// Starts at max_size and decrements with every item
+    #[serde(default)]
     space: usize,
     pub items: HashMap<Item, usize>,
 }
@@ -15,7 +19,7 @@ pub struct Inventory {
 impl Default for Inventory {
     fn default() -> Self {
         Self {
-            max_size: 64,
+            capacity: 64,
             // TODO: Make this work
             space: 64,
             items: HashMap::default(),
@@ -24,12 +28,36 @@ impl Default for Inventory {
 }
 
 impl Inventory {
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self {
+            capacity,
+            ..default()
+        }
+    }
+
     pub fn with(mut self, item: Item, amount: usize) -> Result<Self, InventoryError> {
         self.add(item, amount)?;
         Ok(self)
     }
 
     pub fn with_many(
+        mut self,
+        items_amounts: HashMap<String, usize>,
+        items: &Assets<Item>,
+        library: &Library,
+    ) -> Result<Self, InventoryError> {
+        for (item_name, amount) in items_amounts.iter() {
+            item(item_name, items, library)
+                .map(|x| self.add(x.clone(), *amount))
+                .ok_or(InventoryError::ItemNotFound {
+                    name: item_name.to_string(),
+                })
+                .flatten()?;
+        }
+        Ok(self)
+    }
+
+    pub fn with_many_single(
         mut self,
         item_names: &[&'static str],
         items: &Assets<Item>,

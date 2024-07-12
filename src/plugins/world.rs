@@ -2,7 +2,9 @@ use std::time::Duration;
 
 use avian3d::prelude::*;
 use bevy::prelude::*;
+use events::WorldEvent;
 use leafwing_input_manager::prelude::*;
+use thiserror::Error;
 
 use crate::prelude::*;
 
@@ -19,7 +21,7 @@ impl Plugin for WorldPlugin {
             .register_type::<components::Craft>()
             .register_type::<components::Damage>()
             .register_type::<components::Destroyed>()
-            .register_type::<components::Drop>()
+            .register_type::<components::Drops>()
             .register_type::<components::DropRate>()
             .register_type::<components::Equipment>()
             .register_type::<components::EquipmentType>()
@@ -40,14 +42,17 @@ impl Plugin for WorldPlugin {
             .register_type::<components::Structure>()
             .register_type::<components::Weapon>()
             .register_type::<components::WeaponType>()
+            .add_event::<WorldEvent>()
             .insert_resource(ClearColor(Color::BLACK))
             .add_systems(OnEnter(AppState::main()), setup)
             .add_systems(
                 Update,
                 (
                     manage_spawners,
+                    manage_world_events.pipe(handle_errors::<WorldEventError>),
                     manage_slice_transforms.after(manage_gates),
                     manage_gates,
+                    setup_health,
                 )
                     .run_if(in_state(AppState::main())),
             );
@@ -60,9 +65,6 @@ fn setup(
     library: Res<Library>,
     items: Res<Assets<Item>>,
 ) {
-    let item = |name: &str| -> Option<&Item> {
-        items.get(library.items.get(&format!("items/{}.ron", name)).unwrap())
-    };
     let input_map = InputMap::default()
         .with(
             Action::Turn,
@@ -93,7 +95,7 @@ fn setup(
             inventory: Inventory::default(),
             equipment: Equipment {
                 inventory: Inventory::default()
-                    .with_many(
+                    .with_many_single(
                         &["minireactor.energy", "dart.weapon", "autoweld.repair"],
                         &items,
                         &library,
@@ -225,67 +227,29 @@ fn manage_slice_transforms(
 }
 
 fn manage_spawners(
-    mut cmd: Commands,
     mut spawners: Query<(Entity, &mut Spawner, &Transform, &Slice), Without<Destroyed>>,
+    mut events: EventWriter<WorldEvent>,
     spawned_from: Query<&SpawnedFrom, Without<Destroyed>>,
-    library: Res<Library>,
-    items: Res<Assets<Item>>,
     time: Res<Time>,
 ) {
-    let metals: Item = Item {
-        name: String::from("metals"),
-        mass: 1.,
-        size: 1,
-        equipment: None,
-    };
-
     for (entity, mut spawner, transform, slice) in spawners.iter_mut() {
         let new_time = spawner.last_spawned + spawner.delay;
         if time.elapsed() >= new_time {
             if spawned_from.iter().filter(|s| s.0 == entity).count() < spawner.maximum {
                 // Spawn thing
-                cmd.spawn((
-                    SpawnedFrom(entity),
-                    InRange::new(16.0),
-                    CraftBundle {
-                        craft: Craft {
-                            speed: 6f32,
-                            rotation: 80f32,
-                            brake: 10f32,
-                            acceleration: 50f32,
-                        },
-                        alliegance: Alliegance {
-                            faction: Faction::ENEMY,
-                            allies: Faction::ENEMY,
-                            enemies: Faction::PLAYER,
-                        },
-                        slice: slice.clone(),
-                        transform: *transform,
-                        equipment: Equipment {
-                            inventory: Inventory::default()
-                                .with_many(
-                                    &["minireactor.energy", "dart.weapon", "autoweld.repair"],
-                                    &items,
-                                    &library,
-                                )
-                                .unwrap(),
-                        },
-                        ..default()
+                events.send(WorldEvent::SpawnCreature {
+                    name: "pest",
+                    transform: *transform,
+                    slice: slice.0,
+                    alliegance: Alliegance {
+                        faction: Faction::ENEMY,
+                        allies: Faction::ENEMY,
+                        enemies: Faction::PLAYER,
                     },
-                    Npc,
-                    Drop {
-                        items: [(
-                            metals.clone(),
-                            DropRate {
-                                amount: 10..=20,
-                                d: 3,
-                            },
-                        )]
-                        .into(),
-                    },
-                ));
+                    from: Some(entity),
+                });
+                spawner.last_spawned = time.elapsed();
             }
-            spawner.last_spawned = time.elapsed();
         }
     }
 }
@@ -299,4 +263,98 @@ fn manage_gates(gates: Query<(&Gate, &CollidingEntities)>, mut objects: Query<&m
             }
         }
     }
+}
+
+/// Health is sometimes determined on the object/item/craft,
+/// so we can use this system to apply it
+fn setup_health(mut cmd: Commands, crafts: Query<(Entity, &Craft), Added<Craft>>) {
+    for (entity, craft) in crafts.iter() {
+        cmd.entity(entity)
+            .insert((Health(craft.health), Damage::default()));
+    }
+}
+
+fn manage_world_events(
+    mut cmd: Commands,
+    mut events: EventReader<WorldEvent>,
+    library: Res<Library>,
+    creatures: Res<Assets<Creature>>,
+    crafts: Res<Assets<Craft>>,
+    items: Res<Assets<Item>>,
+) -> Result<(), WorldEventError> {
+    for event in events.read() {
+        match event {
+            WorldEvent::SpawnCreature {
+                name,
+                transform,
+                slice,
+                alliegance,
+                from,
+            } => {
+                let creature = library
+                    .creatures
+                    .get(&format!("creatures/{}.creature.ron", name))
+                    .ok_or_else(|| WorldEventError::AssetNotFound(name.to_string()))?;
+                let Creature {
+                    name,
+                    craft,
+                    drops,
+                    inventory,
+                    equipped,
+                    range,
+                } = creatures
+                    .get(creature)
+                    .cloned()
+                    .ok_or_else(|| WorldEventError::AssetNotFound(name.to_string()))?;
+                let craft = library
+                    .crafts
+                    .get(&format!("crafts/{}.craft.ron", craft))
+                    .and_then(|craft| crafts.get(craft))
+                    .ok_or_else(|| WorldEventError::AssetNotFound(name.to_string()))?;
+                let drops = drops
+                    .into_iter()
+                    .filter_map(|(drop_name, drop_rate)| {
+                        library
+                            .items
+                            .get(&drop_name)
+                            .and_then(|item| items.get(item).cloned())
+                            .and_then(|item| Some((item, drop_rate)))
+                    })
+                    .collect();
+                let mut ent = cmd.spawn((
+                    CraftBundle {
+                        collider: Collider::sphere(craft.size * 0.5),
+                        mass: Mass(craft.mass),
+                        craft: craft.clone(),
+                        transform: *transform,
+                        alliegance: *alliegance,
+                        inventory: Inventory::with_capacity(craft.capacity)
+                            .with_many(inventory.into_iter().collect(), &items, &library)
+                            .unwrap(),
+                        // TODO: figure out interplay between two capacities
+                        equipment: Equipment {
+                            inventory: Inventory::with_capacity(craft.capacity)
+                                .with_many(equipped.into_iter().collect(), &items, &library)
+                                .unwrap(),
+                        },
+                        slice: Slice(*slice),
+                        ..default()
+                    },
+                    Npc,
+                    Drops(drops),
+                    InRange::new(range),
+                ));
+                if let Some(from) = from {
+                    ent.insert((SpawnedFrom(*from),));
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+#[derive(Error, Debug)]
+enum WorldEventError {
+    #[error("could not find asset with key {0}")]
+    AssetNotFound(String),
 }

@@ -30,3 +30,14 @@ pub enum InventoryEvent {
         amount: Option<usize>,
     },
 }
+
+#[derive(Event)]
+pub enum WorldEvent {
+    SpawnCreature {
+        name: &'static str,
+        transform: Transform,
+        slice: usize,
+        alliegance: Alliegance,
+        from: Option<Entity>,
+    },
+}

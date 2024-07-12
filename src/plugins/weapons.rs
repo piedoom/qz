@@ -1,4 +1,4 @@
-use std::{slice::SliceIndex, time::Duration};
+use std::time::Duration;
 
 use crate::prelude::*;
 use avian3d::prelude::*;

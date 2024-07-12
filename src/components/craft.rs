@@ -2,6 +2,7 @@
 
 use avian3d::prelude::*;
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 
 use crate::prelude::*;
 
@@ -9,7 +10,7 @@ use crate::prelude::*;
 pub struct Destroyed;
 
 #[derive(Component, Reflect, Deref, DerefMut)]
-pub struct Health(usize);
+pub struct Health(pub usize);
 
 /// Damage inflicted. Used in tandem with [`Health`]. Damage is a float instead of an integer, as
 /// repairs may repair fractional amounts
@@ -29,8 +30,10 @@ impl From<f32> for Damage {
 }
 
 /// Moveable thing
-#[derive(Component, Reflect)]
+#[derive(Debug, Clone, Component, Reflect, Asset, Serialize, Deserialize)]
 pub struct Craft {
+    /// Name
+    pub name: String,
     /// Top speed
     pub speed: f32,
     /// Top rotational speed
@@ -39,6 +42,14 @@ pub struct Craft {
     pub brake: f32,
     /// Acceleration
     pub acceleration: f32,
+    /// Base health
+    pub health: usize,
+    /// Hitbox size
+    pub size: f32,
+    /// Base mass
+    pub mass: f32,
+    /// Inventory capacity
+    pub capacity: usize,
 }
 
 #[derive(Bundle)]
@@ -54,8 +65,6 @@ pub struct CraftBundle {
     pub alliegance: Alliegance,
     pub inventory: Inventory,
     pub equipment: Equipment,
-    pub health: Health,
-    pub damage: Damage,
     pub collision_layers: CollisionLayers,
     pub slice: Slice,
 }
@@ -72,6 +81,11 @@ impl Default for CraftBundle {
                 rotation: 300f32,
                 brake: 200f32,
                 acceleration: 40f32,
+                health: 64,
+                size: 1f32,
+                mass: 2500f32,
+                capacity: 100,
+                name: "craft".to_string(),
             },
             locked_axes: LockedAxes::default()
                 .lock_translation_z()
@@ -86,8 +100,6 @@ impl Default for CraftBundle {
             inventory: Inventory::default(),
             linear_damping: LinearDamping::default(),
             equipment: Equipment::default(),
-            health: 64.into(),
-            damage: default(),
             collision_layers: CollisionLayers {
                 memberships: LayerMask::from([PhysicsCategory::Craft]),
                 filters: LayerMask::from([PhysicsCategory::Craft, PhysicsCategory::Weapon]),

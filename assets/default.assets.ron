@@ -5,4 +5,10 @@
     "items": Folder (
        path: "items",
     ),
+    "creatures": Folder (
+       path: "creatures",
+    ),
+    "crafts": Folder (
+       path: "crafts",
+    ),
 })

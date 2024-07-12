@@ -32,6 +32,7 @@ fn handle_energy(
     destroyed: Query<&Destroyed>,
     time: Res<Time>,
 ) {
+    // Ensure not destroyed
     for (mut energy, maybe_parent) in energy.iter_mut() {
         if maybe_parent
             .and_then(|p| destroyed.get(p.get()).ok())

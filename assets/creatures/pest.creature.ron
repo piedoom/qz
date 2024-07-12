@@ -1,0 +1,15 @@
+(
+    name: "pest",
+    craft: "pest",
+    range: 16.0,
+    drops: [
+        ("scrap_metal.item", (min: 10, max: 100, d: 6)),
+    ],
+    inventory: [
+        ("scrap_metal.item", 10),
+    ],
+    equipped: [
+        ("dart.weapon", 1),
+        ("minireactor.energy", 1),
+    ],
+)
