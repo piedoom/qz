@@ -7,11 +7,67 @@ pub struct InputPlugin;
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ActionState<Action>>()
-            .insert_resource(
-                InputMap::<Action>::default(), // Insert the control map here
-            )
             .add_plugins(InputManagerPlugin::<Action>::default())
-            .add_systems(Update, apply_player_input);
+            .add_plugins(InputManagerPlugin::<AppAction>::default())
+            .insert_resource(ActionState::<AppAction>::default())
+            .insert_resource(InputMap::<AppAction>::default())
+            .add_systems(
+                Update,
+                (
+                    apply_player_input,
+                    apply_app_input,
+                    update_player_bindings.run_if(resource_exists::<Settings>),
+                ),
+            )
+            .add_systems(
+                Update,
+                (update_app_action_bindings,).run_if(resource_exists_and_changed::<Settings>),
+            );
+    }
+}
+
+fn update_player_bindings(
+    mut player_bindings: Query<&mut InputMap<Action>, With<Player>>,
+    new_players: Query<(), Added<Player>>,
+    settings: Res<Settings>,
+) {
+    let mut set_player_bindings = || {
+        if let Ok(mut player_bindings) = player_bindings.get_single_mut() {
+            *player_bindings = InputMap::default()
+                .with(
+                    Action::Turn,
+                    KeyboardVirtualAxis::new(
+                        settings.controls.keyboard.left,
+                        settings.controls.keyboard.right,
+                    ),
+                )
+                .with(Action::Thrust, settings.controls.keyboard.thrust)
+                .with(Action::Brake, settings.controls.keyboard.brake)
+                .with(Action::Fire, settings.controls.keyboard.fire);
+        }
+    };
+
+    if settings.is_changed() {
+        set_player_bindings();
+    }
+
+    if !new_players.is_empty() {
+        set_player_bindings();
+    }
+}
+
+fn update_app_action_bindings(
+    mut app_actions: ResMut<InputMap<AppAction>>,
+    settings: Res<Settings>,
+) {
+    InputManagerPlugin::<AppAction>::default();
+    // Resource level input
+    *app_actions = InputMap::default().with(AppAction::Console, settings.controls.keyboard.console);
+}
+
+fn apply_app_input(mut draw_inspector: ResMut<DrawInspector>, input: Res<ActionState<AppAction>>) {
+    if input.just_pressed(&AppAction::Console) {
+        **draw_inspector = !**draw_inspector;
     }
 }
 

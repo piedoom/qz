@@ -5,6 +5,7 @@ use thiserror::Error;
 #[derive(Clone, Debug, Component, Reflect, Serialize, Deserialize, Default)]
 pub struct Energy {
     pub capacity: usize,
+    /// TODO: decouple available energy from equipped energy
     #[serde(default)]
     pub charge: f32,
     pub recharge_rate: f32,

@@ -9,6 +9,7 @@ Settings(
             thrust: KeyW,
             brake: KeyS,
             fire: Space,
+            console: Backquote,
         ),
     ),
 )

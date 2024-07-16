@@ -16,6 +16,7 @@ fn draw_hud(
     mut contexts: EguiContexts,
     mut events: EventWriter<EquipEvent>,
     mut inv_events: EventWriter<InventoryEvent>,
+    mut selected_item: Local<Option<Item>>,
     inventories: Query<&Inventory>,
     energy: Query<&Energy>,
     children: Query<&Children>,
@@ -60,6 +61,9 @@ fn draw_hud(
                                 manage_inventory: true,
                             });
                         }
+                        if ui.button("Inspect").clicked() {
+                            *selected_item = Some(item.clone());
+                        }
                     });
                 });
             }
@@ -76,6 +80,9 @@ fn draw_hud(
                                     item: item.clone(),
                                     manage_inventory: true,
                                 });
+                            }
+                            if ui.button("Inspect").clicked() {
+                                *selected_item = Some(item.clone());
                             }
                         });
                     });
@@ -99,10 +106,58 @@ fn draw_hud(
                                     amount: Some(*amount),
                                 });
                             }
+                            if ui.button("Inspect").clicked() {
+                                *selected_item = Some(item.clone());
+                            }
                         });
                     }
                 }
             }
         }
     });
+    if let Some(selected) = selected_item.as_ref() {
+        egui::Window::new(&selected.name).show(contexts.ctx_mut(), |ui| {
+            ui.vertical(|ui| {
+                ui.label(format!("type: {}", selected.equipment_type_str(),));
+
+                ui.label(format!("size: {}", selected.size));
+                ui.label(format!("mass: {}", selected.mass));
+
+                if let Some(eq) = &selected.equipment {
+                    match eq {
+                        EquipmentType::Weapon(w) => match w.weapon_type {
+                            WeaponType::ProjectileWeapon {
+                                tracking,
+                                speed,
+                                recoil,
+                                spread,
+                                shots,
+                                damage,
+                                radius,
+                                lifetime,
+                                energy,
+                            } => {
+                                ui.heading("projectile weapon");
+                                ui.label(format!("damage: {}", damage));
+                                ui.label(format!("energy: {}", energy));
+                                ui.label(format!("recoil: {}s", recoil));
+                                ui.label(format!("shots: {}", shots));
+                                ui.label(format!("spread: {}", spread));
+                                ui.label(format!("lifetime: {}", lifetime));
+                                ui.label(format!("speed: {}", speed));
+                                ui.label(format!("tracking: {}", tracking));
+                            }
+                        },
+                        EquipmentType::RepairBot(r) => {
+                            ui.label(format!("repair rate: {}/s", r.rate));
+                        }
+                        EquipmentType::Energy(e) => {
+                            ui.label(format!("capacity: {}", e.capacity));
+                            ui.label(format!("recharge rate: {}/s", e.recharge_rate));
+                        }
+                    }
+                }
+            });
+        });
+    }
 }

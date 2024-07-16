@@ -6,7 +6,7 @@
         Energy(
             Energy(
                 capacity: 24,
-                recharge_rate: 3.0,
+                recharge_rate: 2.5,
             ),
         ),
     ),

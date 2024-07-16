@@ -46,4 +46,6 @@ pub struct KeyboardControls {
     pub brake: KeyCode,
     /// Fire
     pub fire: KeyCode,
+    /// Toggle debug
+    pub console: KeyCode,
 }

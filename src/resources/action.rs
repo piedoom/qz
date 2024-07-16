@@ -13,3 +13,10 @@ pub enum Action {
     /// Fire
     Fire,
 }
+
+/// Application level actions that shouldn't be tied to any specific entity
+#[derive(Actionlike, PartialEq, Eq, Hash, Clone, Copy, Debug, Reflect, Resource)]
+pub enum AppAction {
+    /// Show debug tools
+    Console,
+}

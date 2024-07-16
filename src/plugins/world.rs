@@ -59,29 +59,12 @@ impl Plugin for WorldPlugin {
     }
 }
 
-fn setup(
-    mut cmd: Commands,
-    settings: Res<Settings>,
-    library: Res<Library>,
-    items: Res<Assets<Item>>,
-) {
-    let input_map = InputMap::default()
-        .with(
-            Action::Turn,
-            KeyboardVirtualAxis::new(
-                settings.controls.keyboard.left,
-                settings.controls.keyboard.right,
-            ),
-        )
-        .with(Action::Thrust, settings.controls.keyboard.thrust)
-        .with(Action::Brake, settings.controls.keyboard.brake)
-        .with(Action::Fire, settings.controls.keyboard.fire);
-
+fn setup(mut cmd: Commands, library: Res<Library>, items: Res<Assets<Item>>) {
     // Spawn player
     cmd.spawn((
         Player,
         Name::new("Player"),
-        InputManagerBundle::with_map(input_map),
+        InputManagerBundle::<Action>::default(),
         ChestsInRange {
             chests: default(),
             range: 5f32,
@@ -203,7 +186,6 @@ fn setup(
         Transform::from_xyz(-10f32, 15f32, 0f32),
     ));
 
-    spawn_nest(&mut cmd, (13f32, 8f32).into(), 0);
     spawn_nest(&mut cmd, (10f32, -8f32).into(), 1);
     spawn_nest(&mut cmd, (-4f32, 2f32).into(), 1);
     spawn_nest(&mut cmd, (-10f32, 8f32).into(), 2);

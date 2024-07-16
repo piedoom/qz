@@ -1,5 +1,6 @@
 use avian3d::prelude::*;
 use bevy::prelude::*;
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 use crate::prelude::*;
 
@@ -7,20 +8,23 @@ pub struct DebugPlugin;
 
 impl Plugin for DebugPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (
-                draw_controllers,
-                draw_projectiles,
-                draw_health_and_damage,
-                draw_slices,
-                draw_structures,
-                draw_destroyed,
-                draw_chests,
-                draw_active_chests,
-                draw_gates,
-            ),
-        );
+        app.init_resource::<DrawInspector>()
+            .add_plugins((WorldInspectorPlugin::new()
+                .run_if(resource_equals::<DrawInspector>(DrawInspector(true))),))
+            .add_systems(
+                Update,
+                (
+                    draw_controllers,
+                    draw_projectiles,
+                    draw_health_and_damage,
+                    draw_slices,
+                    draw_structures,
+                    draw_destroyed,
+                    draw_chests,
+                    draw_active_chests,
+                    draw_gates,
+                ),
+            );
     }
 }
 

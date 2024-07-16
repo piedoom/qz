@@ -12,9 +12,9 @@
                     spread: 0.1,
                     shots: 1,
                     damage: 10,
-                    radius: 0.2,
+                    radius: 0.3,
                     lifetime: 2.0,
-                    energy: 4,
+                    energy: 3,
                 )
             )
         )

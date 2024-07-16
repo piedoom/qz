@@ -3,10 +3,10 @@
     craft: "pest",
     range: 16.0,
     drops: [
-        ("scrap_metal.item", (min: 10, max: 100, d: 6)),
+        ("scrap_metal.item", (min: 2, max: 12, d: 6)),
     ],
     inventory: [
-        ("scrap_metal.item", 10),
+        ("scrap_metal.item", 3),
     ],
     equipped: [
         ("shotgun.weapon", 1),

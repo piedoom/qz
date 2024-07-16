@@ -38,6 +38,19 @@ pub enum EquipmentType {
     Energy(Energy),
 }
 
+impl Item {
+    pub fn equipment_type_str(&self) -> &'static str {
+        match &self.equipment {
+            Some(eq) => match eq {
+                EquipmentType::Weapon(_) => "weapon",
+                EquipmentType::RepairBot(_) => "repair bot",
+                EquipmentType::Energy(_) => "energy",
+            },
+            None => "item",
+        }
+    }
+}
+
 impl PartialEq for Item {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name

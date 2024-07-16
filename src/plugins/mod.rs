@@ -14,7 +14,6 @@ mod world;
 use avian3d::{prelude::Gravity, PhysicsPlugins};
 use bevy::{app::PluginGroupBuilder, prelude::*};
 use bevy_egui::EguiPlugin;
-use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 use crate::prelude::AppState;
 
@@ -30,7 +29,6 @@ impl PluginGroup for ClientPlugins {
             .add_group(DefaultPlugins)
             .add_group(PhysicsPlugins::default())
             .add(EguiPlugin)
-            .add(WorldInspectorPlugin::new())
             .add(ClientInitPlugin)
             .add(assets::AssetsPlugin)
             .add(settings::SettingsPlugin)
