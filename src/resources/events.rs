@@ -12,12 +12,12 @@ pub enum EquipEvent {
     Equip {
         entity: Entity,
         item: Item,
-        manage_inventory: bool,
+        transfer_from_inventory: bool,
     },
     Unequip {
         entity: Entity,
         item: Item,
-        manage_inventory: bool,
+        transfer_into_inventory: bool,
     },
 }
 

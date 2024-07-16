@@ -77,13 +77,17 @@ fn setup(mut cmd: Commands, library: Res<Library>, items: Res<Assets<Item>>) {
             },
             inventory: Inventory::default(),
             equipment: Equipment {
-                inventory: Inventory::default()
-                    .with_many_single(
-                        &["minireactor.energy", "dart.weapon", "autoweld.repair"],
-                        &items,
-                        &library,
-                    )
-                    .unwrap(),
+                inventory: Inventory::with_capacity(55), // .with_many(
+                                                         //     [
+                                                         //         ("minireactor.energy".to_string(), 1),
+                                                         //         ("dart.weapon".to_string(), 1),
+                                                         //         ("autoweld.repair".to_string(), 1),
+                                                         //     ]
+                                                         //     .into(),
+                                                         //     &items,
+                                                         //     &library,
+                                                         // )
+                                                         // .unwrap(),
             },
             ..default()
         },

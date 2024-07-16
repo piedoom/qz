@@ -57,14 +57,14 @@ fn manage_equipment(
             events::EquipEvent::Equip {
                 entity,
                 item,
-                manage_inventory,
+                transfer_from_inventory,
             } => {
                 // get the inventory and equipment components of the given entity
                 let (mut inventory, mut equipment) = inv_equip
                     .get_mut(*entity)
                     .map_err(|_| InventoryError::Unqueriable)?;
 
-                if *manage_inventory {
+                if *transfer_from_inventory {
                     // shuffle inventory
                     inventory.transfer(item, &mut equipment.inventory, Some(1))?;
                 }
@@ -104,7 +104,7 @@ fn manage_equipment(
             events::EquipEvent::Unequip {
                 entity,
                 item,
-                manage_inventory,
+                transfer_into_inventory: manage_inventory,
             } => {
                 // get the inventory and equipment components of the given entity
                 let (mut inventory, mut equipment) = inv_equip
@@ -138,12 +138,12 @@ fn init_equipment(
     equipment: Query<(Entity, &Equipment), Added<Equipment>>,
 ) {
     for (entity, equip) in equipment.iter() {
-        for (item, amount) in &equip.inventory.items {
+        for (item, amount) in equip.inventory.iter() {
             for _ in 0..*amount {
                 events.send(EquipEvent::Equip {
                     entity,
                     item: item.clone(),
-                    manage_inventory: false,
+                    transfer_from_inventory: false,
                 });
             }
         }
@@ -216,3 +216,17 @@ fn update_chests_in_range(
             .collect();
     }
 }
+
+// #[cfg(test)]
+// mod tests {
+//     use events::{EquipEvent, InventoryEvent};
+
+//     use super::*;
+
+//     #[test]
+//     fn create_with_capacity() {
+//         // Setup app
+//         let mut app = App::new();
+//         app.add_plugins((InventoryPlugin,));
+//     }
+// }

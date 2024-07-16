@@ -1,4 +1,7 @@
-use bevy::{prelude::*, utils::HashMap};
+use bevy::{
+    prelude::*,
+    utils::{hashbrown, HashMap},
+};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -9,25 +12,36 @@ use crate::prelude::*;
 pub struct Inventory {
     /// Maximum size of the inventory, determined by the craft (so it is not serialized)
     #[serde(default)]
-    pub capacity: usize,
-    /// Starts at max_size and decrements with every item
+    capacity: usize,
+    /// Spaces out of the capacity that are occupied by items
     #[serde(default)]
-    space: usize,
-    pub items: HashMap<Item, usize>,
+    space_occupied: usize,
+    items: HashMap<Item, usize>,
 }
 
 impl Default for Inventory {
     fn default() -> Self {
         Self {
             capacity: 64,
-            // TODO: Make this work
-            space: 64,
             items: HashMap::default(),
+            space_occupied: default(),
         }
     }
 }
 
 impl Inventory {
+    pub fn capacity(&self) -> usize {
+        self.capacity
+    }
+
+    pub fn space_occupied(&self) -> usize {
+        self.space_occupied
+    }
+
+    pub fn iter(&self) -> hashbrown::hash_map::Iter<Item, usize> {
+        self.items.iter()
+    }
+
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             capacity,
@@ -57,41 +71,27 @@ impl Inventory {
         Ok(self)
     }
 
-    pub fn with_many_single(
-        mut self,
-        item_names: &[&'static str],
-        items: &Assets<Item>,
-        library: &Library,
-    ) -> Result<Self, InventoryError> {
-        for item_name in item_names.iter() {
-            item(item_name, items, library)
-                .map(|x| self.add(x.clone(), 1))
-                .ok_or(InventoryError::ItemNotFound {
-                    name: item_name.to_string(),
-                })
-                .flatten()?;
-        }
-        Ok(self)
-    }
-
-    /// Add an item to the inventory and return the new amount of that item, or an error if there is no space
-    pub fn add(&mut self, item: Item, amount: usize) -> Result<usize, InventoryError> {
+    /// Add an item to the inventory
+    pub fn add(&mut self, item: Item, amount: usize) -> Result<(), InventoryError> {
         // First, ensure we can handle the space
         let total_size = item.size * amount;
-        if self.space < total_size {
+        if self.space_occupied >= total_size {
             Err(InventoryError::NoSpaceLeft {
                 item_name: item.name.to_string(),
-                overage: total_size - self.space,
+                overage: self.space_occupied - total_size,
             })
         } else {
-            // We can handle the space - add items to the inventory
+            // We can handle the space
+            // Add the size of the added items to the inventory's tracker so we don't need to calculate
+            // this every frame
+            self.space_occupied += total_size;
+            // Add items to the inventory. If we already have an item of the type,
+            // get it from our hashmap and add. Otherwise, insert.
             Ok(if let Some(existing_amount) = self.items.get_mut(&item) {
                 let new_amount = *existing_amount + amount;
                 *existing_amount = new_amount;
-                new_amount
             } else {
                 self.items.insert(item, amount);
-                amount
             })
         }
     }
@@ -111,12 +111,13 @@ impl Inventory {
                     }
                 }
 
-                // let item = item.clone();
-
                 // Get our amount or take everything
-                let amount = amount.unwrap_or(*existing_amount);
+                let amount_to_remove = amount.unwrap_or(*existing_amount);
 
-                let new_amount = *existing_amount - amount;
+                // Subtrack from our inventory space
+                self.space_occupied -= amount_to_remove;
+
+                let new_amount = *existing_amount - amount_to_remove;
                 *existing_amount = new_amount;
 
                 // If the existing amount is now 0, remove the item from the inventory entirely
@@ -124,7 +125,7 @@ impl Inventory {
                     self.items.remove(item);
                 }
 
-                Ok(amount)
+                Ok(amount_to_remove)
             }
             None => {
                 // No items exist in the inventory to remove
@@ -183,4 +184,67 @@ pub enum InventoryError {
     Unqueriable,
     #[error("could not find requested item {name}")]
     ItemNotFound { name: String },
+}
+
+#[cfg(test)]
+mod tests {
+    use std::assert_matches::assert_matches;
+
+    use super::*;
+
+    fn item(size: usize) -> Item {
+        Item {
+            name: "item name".to_string(),
+            mass: 10.0,
+            size,
+            equipment: None,
+        }
+    }
+
+    /// Successfully adds an item to the inventory
+    #[test]
+    fn add() {
+        let mut inv = Inventory::with_capacity(100);
+        assert_matches!(inv.add(item(1), 1), Ok(()));
+    }
+
+    /// Successfully removes an item from the inventory
+    #[test]
+    fn remove() {
+        let mut inv = Inventory::with_capacity(100);
+        inv.add(item(1), 1).unwrap();
+        assert_matches!(inv.remove(&item(1), Some(1)), Ok(1));
+    }
+
+    /// Successfully adds multiple items to the inventory
+    #[test]
+    fn advanced_add() {
+        let mut inv = Inventory::with_capacity(10);
+        assert_matches!(inv.add(item(2), 4), Ok(()));
+    }
+
+    // /// Successfully removes multiple items from the inventory
+    // #[test]
+    // fn advanced_remove() {
+    //     let mut inv = Inventory::with_capacity(100);
+    //     inv.add(item(1), 1).unwrap();
+    //     assert_matches!(inv.remove(&item(1), Some(1)), Ok(1));
+    // }
+
+    /// Unsuccessfully attempts to add an item to a full inventory
+    #[test]
+    fn unsuccessful_add() {
+        let mut inv = Inventory::with_capacity(1);
+        inv.add(item(1), 1).unwrap();
+        assert_matches!(inv.add(item(1), 1), Err(_));
+    }
+
+    /// Unsuccessfully attempts to remove more items than exists in the inventory
+    #[test]
+    fn unsuccessful_remove() {
+        let mut inv = Inventory::with_capacity(100);
+        inv.add(item(1), 2).unwrap();
+        inv.remove(&item(1), Some(1)).unwrap();
+        assert_matches!(inv.remove(&item(1), Some(2)), Err(_));
+    }
 }

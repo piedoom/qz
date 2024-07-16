@@ -49,8 +49,17 @@ fn draw_hud(
                     ));
                 }
             }
+
+            ui.heading(format!(
+                "{}/{}",
+                player_inventory.space_occupied(),
+                player_inventory.capacity()
+            ));
+
+            ui.separator();
+
             ui.heading("Equipment");
-            for (item, count) in equipment.inventory.items.iter() {
+            for (item, count) in equipment.inventory.iter() {
                 ui.vertical(|ui| {
                     ui.horizontal(|ui| {
                         ui.label(format!("{} {}", item.name, count));
@@ -58,7 +67,7 @@ fn draw_hud(
                             events.send(EquipEvent::Unequip {
                                 entity: player_entity,
                                 item: item.clone(),
-                                manage_inventory: true,
+                                transfer_into_inventory: true,
                             });
                         }
                         if ui.button("Inspect").clicked() {
@@ -70,7 +79,7 @@ fn draw_hud(
 
             ui.heading("Inventory");
             {
-                for (item, count) in player_inventory.items.iter() {
+                for (item, count) in player_inventory.iter() {
                     ui.vertical(|ui| {
                         ui.horizontal(|ui| {
                             ui.label(format!("{} {}", item.name, count));
@@ -78,7 +87,7 @@ fn draw_hud(
                                 events.send(EquipEvent::Equip {
                                     entity: player_entity,
                                     item: item.clone(),
-                                    manage_inventory: true,
+                                    transfer_from_inventory: true,
                                 });
                             }
                             if ui.button("Inspect").clicked() {
@@ -95,7 +104,7 @@ fn draw_hud(
                 ui.heading("Chests");
                 for chest in &chests_in_range.chests {
                     let chest_inventory = inventories.get(*chest).unwrap();
-                    for (item, amount) in chest_inventory.items.iter() {
+                    for (item, amount) in chest_inventory.iter() {
                         ui.horizontal(|ui| {
                             ui.label(format!("{} {}", item.name, amount));
                             if ui.button("Take").clicked() {

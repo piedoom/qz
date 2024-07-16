@@ -1,6 +1,7 @@
 //! Game library
 
 #![feature(result_flattening)]
+#![feature(assert_matches)]
 #![allow(clippy::type_complexity)]
 #![allow(clippy::too_many_arguments)]
 // #![deny(missing_docs)]
