@@ -1,5 +1,6 @@
 (
     name: "scrap metal",
+    value: 10,
     mass: 0.2,
     size: 1,
 )

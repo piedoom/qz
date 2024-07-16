@@ -1,5 +1,6 @@
 (
     name: "dart",
+    value: 200,
     mass: 200.0,
     size: 16,
     equipment: Some(

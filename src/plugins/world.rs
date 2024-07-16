@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use avian3d::prelude::*;
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::HashMap};
 use events::WorldEvent;
 use leafwing_input_manager::prelude::*;
 use thiserror::Error;
@@ -77,17 +77,18 @@ fn setup(mut cmd: Commands, library: Res<Library>, items: Res<Assets<Item>>) {
             },
             inventory: Inventory::default(),
             equipment: Equipment {
-                inventory: Inventory::with_capacity(55), // .with_many(
-                                                         //     [
-                                                         //         ("minireactor.energy".to_string(), 1),
-                                                         //         ("dart.weapon".to_string(), 1),
-                                                         //         ("autoweld.repair".to_string(), 1),
-                                                         //     ]
-                                                         //     .into(),
-                                                         //     &items,
-                                                         //     &library,
-                                                         // )
-                                                         // .unwrap(),
+                inventory: Inventory::with_capacity(55)
+                    .with_many_from_str(
+                        [
+                            ("minireactor.energy".to_string(), 1),
+                            ("dart.weapon".to_string(), 1),
+                            ("autoweld.repair".to_string(), 1),
+                        ]
+                        .into(),
+                        &items,
+                        &library,
+                    )
+                    .unwrap(),
             },
             ..default()
         },
@@ -303,8 +304,7 @@ fn manage_world_events(
                         library
                             .items
                             .get(&format!("items/{}.ron", drop_name))
-                            .and_then(|item| items.get(item).cloned())
-                            .and_then(|item| Some((item, drop_rate)))
+                            .and_then(|item| Some((item.clone(), drop_rate)))
                     })
                     .collect();
                 let mut ent = cmd.spawn((
@@ -315,12 +315,20 @@ fn manage_world_events(
                         transform: *transform,
                         alliegance: *alliegance,
                         inventory: Inventory::with_capacity(craft.capacity)
-                            .with_many(inventory.into_iter().collect(), &items, &library)
+                            .with_many_from_str(
+                                inventory.into_iter().collect::<HashMap<String, usize>>(),
+                                &items,
+                                &library,
+                            )
                             .unwrap(),
                         // TODO: figure out interplay between two capacities
                         equipment: Equipment {
                             inventory: Inventory::with_capacity(craft.capacity)
-                                .with_many(equipped.into_iter().collect(), &items, &library)
+                                .with_many_from_str(
+                                    equipped.into_iter().collect(),
+                                    &items,
+                                    &library,
+                                )
                                 .unwrap(),
                         },
                         slice: Slice(*slice),

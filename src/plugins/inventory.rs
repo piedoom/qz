@@ -26,6 +26,7 @@ impl Plugin for InventoryPlugin {
 fn manage_inventory(
     mut inventories: Query<&mut Inventory>,
     mut events: EventReader<events::InventoryEvent>,
+    items: Res<Assets<Item>>,
 ) -> Result<(), InventoryError> {
     for event in events.read() {
         match event {
@@ -38,7 +39,7 @@ fn manage_inventory(
                 let [mut from, mut to] = inventories
                     .get_many_mut([*from, *to])
                     .map_err(|_| InventoryError::Unqueriable)?;
-                from.transfer(item, &mut to, *amount)?;
+                from.transfer(item.clone(), &mut to, *amount, &items)?;
             }
         }
     }
@@ -50,7 +51,8 @@ fn manage_equipment(
     mut events: EventReader<events::EquipEvent>,
     mut inv_equip: Query<(&mut Inventory, &mut Equipment)>,
     children: Query<&Children>,
-    items: Query<&Item>,
+    items: Query<&Handle<Item>>,
+    item_assets: Res<Assets<Item>>,
 ) -> Result<(), InventoryError> {
     for event in events.read() {
         match event {
@@ -66,18 +68,21 @@ fn manage_equipment(
 
                 if *transfer_from_inventory {
                     // shuffle inventory
-                    inventory.transfer(item, &mut equipment.inventory, Some(1))?;
+                    inventory.transfer(item.clone(), &mut equipment.inventory, 1, &item_assets)?;
                 }
+
+                // Retrieve item
+                let retrieved_item = item_assets.get(item).ok_or(InventoryError::ItemNotFound)?;
 
                 // Add entity with given component
                 cmd.entity(*entity)
-                    .with_children(|cmd| match &item.equipment {
+                    .with_children(|cmd| match &retrieved_item.equipment {
                         Some(equipment) => match equipment {
                             EquipmentType::Weapon(weapon) => {
                                 cmd.spawn((
                                     weapon.clone(),
                                     item.clone(),
-                                    Name::new(item.name.clone()),
+                                    Name::new(retrieved_item.name.clone()),
                                     Transform::default_z(),
                                 ));
                             }
@@ -85,7 +90,7 @@ fn manage_equipment(
                                 cmd.spawn((
                                     repair.clone(),
                                     item.clone(),
-                                    Name::new(item.name.clone()),
+                                    Name::new(retrieved_item.name.clone()),
                                     Transform::default_z(),
                                 ));
                             }
@@ -93,7 +98,7 @@ fn manage_equipment(
                                 cmd.spawn((
                                     energy.clone(),
                                     item.clone(),
-                                    Name::new(item.name.clone()),
+                                    Name::new(retrieved_item.name.clone()),
                                     Transform::default_z(),
                                 ));
                             }
@@ -120,9 +125,12 @@ fn manage_equipment(
 
                     // shuffle inventory
                     if *manage_inventory {
-                        equipment
-                            .inventory
-                            .transfer(item, &mut inventory, Some(1))?;
+                        equipment.inventory.transfer(
+                            item.clone(),
+                            &mut inventory,
+                            1,
+                            &item_assets,
+                        )?;
                     }
                 }
             }
@@ -154,6 +162,7 @@ fn manage_drops(
     mut cmd: Commands,
     // Query for just-destroyed entities with a `Drop` component
     drops: Query<(&Drops, &Transform), Added<Destroyed>>,
+    items: Res<Assets<Item>>,
 ) -> Result<(), InventoryError> {
     for (drops, transform) in drops.iter() {
         let mut inv = Inventory::default();
@@ -171,7 +180,7 @@ fn manage_drops(
         let mut rng = rand::thread_rng();
         for (item, amount) in items_to_drop {
             let amount = rng.gen_range(amount.min..=amount.max);
-            inv.add(item.clone(), amount).unwrap();
+            inv.add(item.clone(), amount, &items).unwrap();
         }
 
         // Spawn drops in a chest

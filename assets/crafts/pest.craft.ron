@@ -1,5 +1,6 @@
 (
     name: "pest",
+    value: 1800,
     speed: 6.0,
     rotation: 200.0,
     brake: 100.0,

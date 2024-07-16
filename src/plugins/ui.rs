@@ -17,6 +17,7 @@ fn draw_hud(
     mut events: EventWriter<EquipEvent>,
     mut inv_events: EventWriter<InventoryEvent>,
     mut selected_item: Local<Option<Item>>,
+    items: Res<Assets<Item>>,
     inventories: Query<&Inventory>,
     energy: Query<&Energy>,
     children: Query<&Children>,
@@ -50,19 +51,19 @@ fn draw_hud(
                 }
             }
 
-            ui.heading(format!(
-                "{}/{}",
-                player_inventory.space_occupied(),
-                player_inventory.capacity()
-            ));
-
             ui.separator();
 
             ui.heading("Equipment");
+            ui.heading(format!(
+                "Equipment ({}/{})",
+                equipment.inventory.space_occupied(),
+                equipment.inventory.capacity()
+            ));
             for (item, count) in equipment.inventory.iter() {
+                let retrieved_item = items.get(item).ok_or(InventoryError::ItemNotFound).unwrap();
                 ui.vertical(|ui| {
                     ui.horizontal(|ui| {
-                        ui.label(format!("{} {}", item.name, count));
+                        ui.label(format!("{} {}", retrieved_item.name, count));
                         if ui.button("Unequip").clicked() {
                             events.send(EquipEvent::Unequip {
                                 entity: player_entity,
@@ -71,19 +72,25 @@ fn draw_hud(
                             });
                         }
                         if ui.button("Inspect").clicked() {
-                            *selected_item = Some(item.clone());
+                            *selected_item = Some(retrieved_item.clone());
                         }
                     });
                 });
             }
 
-            ui.heading("Inventory");
+            ui.heading(format!(
+                "Inventory ({}/{})",
+                player_inventory.space_occupied(),
+                player_inventory.capacity()
+            ));
             {
                 for (item, count) in player_inventory.iter() {
+                    let retrieved_item =
+                        items.get(item).ok_or(InventoryError::ItemNotFound).unwrap();
                     ui.vertical(|ui| {
                         ui.horizontal(|ui| {
-                            ui.label(format!("{} {}", item.name, count));
-                            if item.equipment.is_some() && ui.button("Equip").clicked() {
+                            ui.label(format!("{} {}", retrieved_item.name, count));
+                            if retrieved_item.equipment.is_some() && ui.button("Equip").clicked() {
                                 events.send(EquipEvent::Equip {
                                     entity: player_entity,
                                     item: item.clone(),
@@ -91,7 +98,7 @@ fn draw_hud(
                                 });
                             }
                             if ui.button("Inspect").clicked() {
-                                *selected_item = Some(item.clone());
+                                *selected_item = Some(retrieved_item.clone());
                             }
                         });
                     });
@@ -105,18 +112,20 @@ fn draw_hud(
                 for chest in &chests_in_range.chests {
                     let chest_inventory = inventories.get(*chest).unwrap();
                     for (item, amount) in chest_inventory.iter() {
+                        let retrieved_item =
+                            items.get(item).ok_or(InventoryError::ItemNotFound).unwrap();
                         ui.horizontal(|ui| {
-                            ui.label(format!("{} {}", item.name, amount));
+                            ui.label(format!("{} {}", retrieved_item.name, amount));
                             if ui.button("Take").clicked() {
                                 inv_events.send(InventoryEvent::Transfer {
                                     from: *chest,
                                     to: player_entity,
                                     item: item.clone(),
-                                    amount: Some(*amount),
+                                    amount: *amount,
                                 });
                             }
                             if ui.button("Inspect").clicked() {
-                                *selected_item = Some(item.clone());
+                                *selected_item = Some(retrieved_item.clone());
                             }
                         });
                     }
@@ -128,7 +137,7 @@ fn draw_hud(
         egui::Window::new(&selected.name).show(contexts.ctx_mut(), |ui| {
             ui.vertical(|ui| {
                 ui.label(format!("type: {}", selected.equipment_type_str(),));
-
+                ui.label(format!("value: {}", selected.value));
                 ui.label(format!("size: {}", selected.size));
                 ui.label(format!("mass: {}", selected.mass));
 

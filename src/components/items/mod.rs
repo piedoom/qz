@@ -16,6 +16,7 @@ pub struct Item {
     pub name: String,
     pub mass: f32,
     pub size: usize,
+    pub value: usize,
     #[serde(default)]
     pub equipment: Option<EquipmentType>,
 }

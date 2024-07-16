@@ -11,12 +11,12 @@ use crate::prelude::*;
 pub enum EquipEvent {
     Equip {
         entity: Entity,
-        item: Item,
+        item: Handle<Item>,
         transfer_from_inventory: bool,
     },
     Unequip {
         entity: Entity,
-        item: Item,
+        item: Handle<Item>,
         transfer_into_inventory: bool,
     },
 }
@@ -26,8 +26,8 @@ pub enum InventoryEvent {
     Transfer {
         from: Entity,
         to: Entity,
-        item: Item,
-        amount: Option<usize>,
+        item: Handle<Item>,
+        amount: usize,
     },
 }
 

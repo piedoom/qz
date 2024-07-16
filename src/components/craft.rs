@@ -50,6 +50,7 @@ pub struct Craft {
     pub mass: f32,
     /// Inventory capacity
     pub capacity: usize,
+    pub value: usize,
 }
 
 #[derive(Bundle)]
@@ -86,6 +87,7 @@ impl Default for CraftBundle {
                 mass: 2500f32,
                 capacity: 100,
                 name: "craft".to_string(),
+                value: 1000,
             },
             locked_axes: LockedAxes::default()
                 .lock_translation_z()

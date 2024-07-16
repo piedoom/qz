@@ -4,10 +4,10 @@ use serde::{Deserialize, Serialize};
 use crate::prelude::*;
 
 /// Items to drop upon destruction
-#[derive(Debug, Clone, Component, Reflect, Deserialize, Serialize, Deref, DerefMut)]
+#[derive(Debug, Clone, Component, Reflect, Deref, DerefMut)]
 pub struct Drops(
     /// Items to drop mapped to a range of amount to drop normalized value determining drop rate
-    pub HashMap<Item, DropRate>,
+    pub HashMap<Handle<Item>, DropRate>,
 );
 
 #[derive(Debug, Clone, Reflect, PartialEq, Eq, Hash, Deserialize, Serialize)]

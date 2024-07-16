@@ -1,5 +1,6 @@
 (
     name: "minireactor",
+    value: 500,
     mass: 80.0,
     size: 8,
     equipment: Some(
