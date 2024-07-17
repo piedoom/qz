@@ -48,4 +48,8 @@ pub struct KeyboardControls {
     pub fire: KeyCode,
     /// Toggle debug
     pub console: KeyCode,
+    /// Take items
+    pub take: KeyCode,
+    /// Interact with items and objects
+    pub interact: KeyCode,
 }

@@ -41,6 +41,10 @@ impl Inventory {
         self.space_occupied
     }
 
+    pub fn space_remaining(&self) -> usize {
+        self.capacity - self.space_occupied
+    }
+
     pub fn iter(&self) -> hashbrown::hash_map::Iter<Handle<Item>, usize> {
         self.items.iter()
     }
@@ -75,7 +79,6 @@ impl Inventory {
         let total_size = retrieved_item.size * amount;
         if self.space_occupied + total_size > self.capacity() {
             Err(InventoryError::NoSpaceLeft {
-                item_name: retrieved_item.name.to_string(),
                 overage: self.space_occupied + total_size - self.capacity,
             })
         } else {
@@ -158,6 +161,23 @@ impl Inventory {
         Ok(amount)
     }
 
+    /// Move all items into another inventory
+    pub fn transfer_all(&mut self, inventory: &mut Inventory) -> Result<(), InventoryError> {
+        // Short circuit if not enough space in new inventory
+        if self.space_occupied() > inventory.space_remaining() {
+            return Err(InventoryError::NoSpaceLeft {
+                overage: self.space_occupied() - inventory.space_remaining(),
+            });
+        }
+
+        inventory.space_occupied += self.space_occupied;
+
+        // Drain into provided inventory
+        inventory.items.extend(self.items.drain());
+
+        Ok(())
+    }
+
     pub fn with_many_from_str(
         mut self,
         hash_map: HashMap<String, usize>,
@@ -184,8 +204,8 @@ pub struct Equipment {
 
 #[derive(Error, Debug)]
 pub enum InventoryError {
-    #[error("adding `{item_name}` to the inventory would exceed the maximum space by `{overage}`")]
-    NoSpaceLeft { item_name: String, overage: usize },
+    #[error("adding item(s) to the inventory would exceed the maximum space by `{overage}`")]
+    NoSpaceLeft { overage: usize },
     #[error("attempted to remove `{want_to_remove}` of `{item_name}` when only {exists} exists")]
     InsufficientItems {
         want_to_remove: usize,

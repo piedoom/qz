@@ -2,6 +2,12 @@ use bevy::prelude::*;
 
 use crate::prelude::*;
 
+#[derive(Event)]
+pub enum DockEvent {
+    Dock { to_dock: Entity, dock: Entity },
+    Undock { to_undock: Entity },
+}
+
 /// Equip and unequip items. By equipping an item, it is added as a child of the given `Entity` and
 /// can then be queried normally. When unequipped, the child entity is destroyed. You may equip multiple
 /// equipment items of the same type.
@@ -29,6 +35,10 @@ pub enum InventoryEvent {
         item: Handle<Item>,
         amount: usize,
     },
+    TransferAll {
+        from: Entity,
+        to: Entity,
+    },
 }
 
 #[derive(Event)]
@@ -39,5 +49,25 @@ pub enum WorldEvent {
         slice: usize,
         alliegance: Alliegance,
         from: Option<Entity>,
+    },
+}
+
+#[derive(Event)]
+pub enum StoreEvent {
+    Buy {
+        buyer: Entity,
+        store: Entity,
+        item: Handle<Item>,
+        quantity: usize,
+        /// Price per unit
+        price: usize,
+    },
+    Sell {
+        seller: Entity,
+        store: Entity,
+        item: Handle<Item>,
+        quantity: usize,
+        /// Price per unit
+        price: usize,
     },
 }

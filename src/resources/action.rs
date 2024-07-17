@@ -12,6 +12,10 @@ pub enum Action {
     Brake,
     /// Fire
     Fire,
+    /// Take
+    Take,
+    /// Interact
+    Interact,
 }
 
 /// Application level actions that shouldn't be tied to any specific entity

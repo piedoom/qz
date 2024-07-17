@@ -1,10 +1,11 @@
+mod credits;
 mod drop;
 mod energy;
 mod inventory;
 mod repair;
 mod weapon;
 
-pub use {drop::*, energy::*, inventory::*, repair::*, weapon::*};
+pub use {credits::*, drop::*, energy::*, inventory::*, repair::*, weapon::*};
 
 use {
     bevy::prelude::*,

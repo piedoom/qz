@@ -68,6 +68,7 @@ pub struct CraftBundle {
     pub equipment: Equipment,
     pub collision_layers: CollisionLayers,
     pub slice: Slice,
+    pub credits: Credits,
 }
 
 impl Default for CraftBundle {
@@ -107,6 +108,7 @@ impl Default for CraftBundle {
                 filters: LayerMask::from([PhysicsCategory::Craft, PhysicsCategory::Weapon]),
             },
             slice: default(),
+            credits: default(),
         }
     }
 }

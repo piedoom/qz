@@ -93,8 +93,9 @@ pub fn item<'a>(
     name: impl AsRef<str>,
     items: &'a Assets<Item>,
     library: &Library,
-) -> Option<&'a Item> {
-    items.get(library.items.get(&format!("items/{}.ron", name.as_ref()))?)
+) -> Option<(&'a Item, Handle<Item>)> {
+    let handle = library.items.get(&format!("items/{}.ron", name.as_ref()))?;
+    items.get(handle).map(|x| (x, handle.clone()))
 }
 
 pub fn handle_errors<E>(In(result): In<Result<(), E>>)

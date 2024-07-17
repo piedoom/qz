@@ -2,7 +2,7 @@ use crate::prelude::*;
 use bevy::prelude::*;
 use bevy_egui::*;
 use egui::Slider;
-use events::{EquipEvent, InventoryEvent};
+use events::{EquipEvent, InventoryEvent, StoreEvent};
 
 pub struct UiPlugin;
 
@@ -17,10 +17,12 @@ fn draw_hud(
     mut events: EventWriter<EquipEvent>,
     mut inv_events: EventWriter<InventoryEvent>,
     mut selected_item: Local<Option<Item>>,
+    mut store_events: EventWriter<StoreEvent>,
     items: Res<Assets<Item>>,
     inventories: Query<&Inventory>,
     energy: Query<&Energy>,
     children: Query<&Children>,
+    stores: Query<&Store>,
     player: Query<
         (
             Entity,
@@ -29,13 +31,23 @@ fn draw_hud(
             &ChestsInRange,
             &Health,
             &Damage,
+            Option<&Docked>,
+            &Credits,
         ),
         With<Player>,
     >,
 ) {
     egui::SidePanel::new(egui::panel::Side::Left, "hud").show(contexts.ctx_mut(), |ui| {
-        for (player_entity, player_inventory, equipment, chests_in_range, health, damage) in
-            player.iter()
+        for (
+            player_entity,
+            player_inventory,
+            equipment,
+            chests_in_range,
+            health,
+            damage,
+            maybe_docked,
+            credits,
+        ) in player.iter()
         {
             ui.heading("Status");
             ui.add(Slider::new(
@@ -50,6 +62,8 @@ fn draw_hud(
                     ));
                 }
             }
+
+            ui.heading(format!("Credits: {}", credits.get()));
 
             ui.separator();
 
@@ -130,6 +144,58 @@ fn draw_hud(
                         });
                     }
                 }
+            }
+
+            if let Some(docked) = maybe_docked.as_ref() {
+                egui::Window::new("docked").show(ui.ctx(), |ui| {
+                    ui.vertical(|ui| {
+                        if let Ok(store) = stores.get(***docked) {
+                            for (item, options) in store.items.iter() {
+                                let retrieved_item = items.get(item).unwrap();
+                                ui.horizontal(|ui| {
+                                    ui.label(retrieved_item.name.to_string());
+
+                                    ui.label(
+                                        options
+                                            .buy
+                                            .map(|x| x.to_string())
+                                            .unwrap_or("None".to_string()),
+                                    );
+                                    ui.label(
+                                        options
+                                            .sell
+                                            .map(|x| x.to_string())
+                                            .unwrap_or("None".to_string()),
+                                    );
+
+                                    if let Some(selling_for) = options.sell {
+                                        if ui.button("buy 1").clicked() {
+                                            store_events.send(StoreEvent::Buy {
+                                                buyer: player_entity,
+                                                store: ***docked,
+                                                item: item.clone(),
+                                                quantity: 1,
+                                                price: selling_for,
+                                            });
+                                        }
+                                    }
+
+                                    if let Some(buying_for) = options.buy {
+                                        if ui.button("sell 1").clicked() {
+                                            store_events.send(StoreEvent::Sell {
+                                                seller: player_entity,
+                                                store: ***docked,
+                                                item: item.clone(),
+                                                quantity: 1,
+                                                price: buying_for,
+                                            });
+                                        }
+                                    }
+                                });
+                            }
+                        }
+                    });
+                });
             }
         }
     });

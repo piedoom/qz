@@ -1,5 +1,6 @@
 use crate::prelude::*;
 use bevy::{prelude::*, window::PrimaryWindow};
+use events::{DockEvent, InventoryEvent};
 use leafwing_input_manager::prelude::*;
 
 pub struct InputPlugin;
@@ -43,7 +44,9 @@ fn update_player_bindings(
                 )
                 .with(Action::Thrust, settings.controls.keyboard.thrust)
                 .with(Action::Brake, settings.controls.keyboard.brake)
-                .with(Action::Fire, settings.controls.keyboard.fire);
+                .with(Action::Fire, settings.controls.keyboard.fire)
+                .with(Action::Take, settings.controls.keyboard.take)
+                .with(Action::Interact, settings.controls.keyboard.interact);
         }
     };
 
@@ -74,14 +77,35 @@ fn apply_app_input(mut draw_inspector: ResMut<DrawInspector>, input: Res<ActionS
 /// Apply desired input to the player controller
 fn apply_player_input(
     mut players: Query<
-        (&ActionState<Action>, &mut Controller, &Children, &Transform),
+        (
+            Entity,
+            &ActionState<Action>,
+            &mut Controller,
+            &Children,
+            &Transform,
+            &ChestsInRange,
+            &DockInRange,
+            Option<&Docked>,
+        ),
         With<Player>,
     >,
     mut weapons: Query<&mut Weapon>,
+    mut inventory_events: EventWriter<InventoryEvent>,
+    mut dock_events: EventWriter<DockEvent>,
     camera: Query<(&Camera, &GlobalTransform)>,
     window: Query<&Window, With<PrimaryWindow>>,
 ) {
-    for (actions, mut controller, children, transform) in players.iter_mut() {
+    for (
+        player_entity,
+        actions,
+        mut controller,
+        children,
+        transform,
+        chests_in_range,
+        dock_in_range,
+        maybe_docked,
+    ) in players.iter_mut()
+    {
         controller.angular_thrust = actions.value(&Action::Turn);
         controller.thrust = actions.value(&Action::Thrust);
         controller.brake = actions.value(&Action::Brake);
@@ -107,6 +131,38 @@ fn apply_player_input(
             if let Ok(mut weapon) = weapons.get_mut(*child) {
                 weapon.wants_to_fire = actions.value(&Action::Fire) != 0f32;
                 weapon.target = cursor_position;
+            }
+        }
+
+        // Take all nearby items
+        if actions.just_pressed(&Action::Take) {
+            for chest in chests_in_range.chests.iter() {
+                inventory_events.send(InventoryEvent::TransferAll {
+                    from: *chest,
+                    to: player_entity,
+                });
+            }
+        }
+
+        // Dock/undock at a station
+
+        if actions.just_pressed(&Action::Interact) {
+            match maybe_docked {
+                Some(_) => {
+                    // already docked. Remove
+                    dock_events.send(DockEvent::Undock {
+                        to_undock: player_entity,
+                    });
+                }
+                None => {
+                    // Attempt to dock
+                    if let Some(dock) = dock_in_range.dock {
+                        dock_events.send(DockEvent::Dock {
+                            to_dock: player_entity,
+                            dock,
+                        });
+                    }
+                }
             }
         }
     }

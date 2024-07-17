@@ -41,6 +41,12 @@ fn manage_inventory(
                     .map_err(|_| InventoryError::Unqueriable)?;
                 from.transfer(item.clone(), &mut to, *amount, &items)?;
             }
+            InventoryEvent::TransferAll { from, to } => {
+                let [mut from, mut to] = inventories
+                    .get_many_mut([*from, *to])
+                    .map_err(|_| InventoryError::Unqueriable)?;
+                from.transfer_all(&mut to)?;
+            }
         }
     }
     Ok(())

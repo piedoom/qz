@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use avian3d::prelude::*;
-use bevy::{prelude::*, utils::HashMap};
+use bevy::{prelude::*, utils::hashbrown::HashMap};
 use events::WorldEvent;
 use leafwing_input_manager::prelude::*;
 use thiserror::Error;
@@ -25,7 +25,7 @@ impl Plugin for WorldPlugin {
             .register_type::<components::DropRate>()
             .register_type::<components::Equipment>()
             .register_type::<components::EquipmentType>()
-            // .register_type::<components::Faction>()
+            .register_type::<components::Dockings>()
             .register_type::<components::Gate>()
             .register_type::<components::Health>()
             .register_type::<components::InRange>()
@@ -69,6 +69,10 @@ fn setup(mut cmd: Commands, library: Res<Library>, items: Res<Assets<Item>>) {
             chests: default(),
             range: 5f32,
         },
+        DockInRange {
+            dock: None,
+            range: 5f32,
+        },
         CraftBundle {
             alliegance: Alliegance {
                 faction: Faction::PLAYER,
@@ -101,17 +105,32 @@ fn setup(mut cmd: Commands, library: Res<Library>, items: Res<Assets<Item>>) {
     });
 
     // spawn base
+    let (scrap_metal, scrap_metal_handle) = item("scrap_metal.item", &items, &library).unwrap();
     cmd.spawn((
         Structure,
+        Credits::new(100_000),
+        Store {
+            items: [(
+                scrap_metal_handle,
+                SaleOptions {
+                    sell: Some(scrap_metal.value),
+                    buy: Some((scrap_metal.value as f32 * 0.8) as usize),
+                },
+            )]
+            .into(),
+        },
+        Inventory::with_capacity(1000),
         Health::from(1500),
         Damage::default(),
         Mass(100000f32),
         Collider::sphere(2f32),
+        RigidBody::Dynamic,
         Alliegance {
             faction: Faction::PLAYER,
             allies: Faction::PLAYER,
             enemies: Faction::ENEMY,
         },
+        Dockings::default(),
         CollisionLayers {
             memberships: LayerMask::from([PhysicsCategory::Structure]),
             filters: LayerMask::from([PhysicsCategory::Weapon, PhysicsCategory::Structure]),

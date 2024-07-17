@@ -6,6 +6,7 @@ mod equipment;
 mod input;
 mod inventory;
 mod settings;
+mod structures;
 mod ui;
 mod utility;
 mod weapons;
@@ -42,6 +43,7 @@ impl PluginGroup for ClientPlugins {
             .add(utility::UtilityPlugin)
             .add(ui::UiPlugin)
             .add(equipment::RepairsPlugin)
+            .add(structures::StructuresPlugin)
     }
 }
 
