@@ -33,6 +33,10 @@ impl Default for Inventory {
 }
 
 impl Inventory {
+    pub fn quantity(&self, item: &Handle<Item>) -> usize {
+        self.items.get(item).cloned().unwrap_or_default()
+    }
+
     pub fn capacity(&self) -> usize {
         self.capacity
     }
@@ -171,6 +175,7 @@ impl Inventory {
         }
 
         inventory.space_occupied += self.space_occupied;
+        self.space_occupied = 0;
 
         // Drain into provided inventory
         inventory.items.extend(self.items.drain());

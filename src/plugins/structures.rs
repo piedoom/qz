@@ -115,19 +115,26 @@ fn handle_store_events(
                     .get(item)
                     .expect("item should exist with given handle");
 
-                // Ensure the inventory has the item available for transfer of the specified quantity
+                // Ensure there is enough space left
                 if to_inventory.space_remaining() >= retrieved_item.size * quantity {
+                    // Ensure the inventory has the item available for transfer of the specified quantity
+                    if from_inventory.quantity(&item) < *quantity {
+                        return Err(StoreError::NotEnoughItems);
+                    }
                     // Ensure there is enough credits to transfer
                     let total_cost = price * quantity;
-                    if from_credits.get() >= total_cost {
-                        // Commit inventory and credit transfer
-                        from_credits.transfer(&mut to_credits, total_cost)?;
-                        from_inventory.transfer(
-                            item.clone(),
-                            &mut to_inventory,
-                            *quantity,
-                            &items,
-                        )?;
+                    match from_credits.get() >= total_cost {
+                        true => {
+                            // Commit inventory and credit transfer
+                            from_credits.transfer(&mut to_credits, total_cost)?;
+                            from_inventory.transfer(
+                                item.clone(),
+                                &mut to_inventory,
+                                *quantity,
+                                &items,
+                            )?;
+                        }
+                        false => return Err(StoreError::NotEnoughCredits),
                     }
                 }
             }
@@ -144,4 +151,8 @@ enum StoreError {
     CreditsError(#[from] CreditsError),
     #[error(transparent)]
     InventoryError(#[from] InventoryError),
+    #[error("not enough items")]
+    NotEnoughItems,
+    #[error("not enough credits")]
+    NotEnoughCredits,
 }
