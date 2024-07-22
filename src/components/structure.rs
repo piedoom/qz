@@ -44,7 +44,7 @@ pub struct Store {
 }
 
 /// Describes whether an item is listed for sale or for buying
-#[derive(Default, Reflect)]
+#[derive(Default, Reflect, Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct SaleOptions {
     pub sell: SaleOption,
     pub buy: SaleOption,
@@ -52,8 +52,9 @@ pub struct SaleOptions {
 
 impl SaleOptions {}
 
-#[derive(Default, Reflect)]
+#[derive(Default, Reflect, Serialize, Deserialize, Debug, Clone, Copy)]
 pub enum SaleOption {
+    /// Not for sale/purchase
     #[default]
     None,
     /// Scale the base price determined on the item level

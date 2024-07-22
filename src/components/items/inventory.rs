@@ -3,7 +3,6 @@ use bevy::{
     utils::{hashbrown, HashMap},
 };
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 
 use crate::prelude::*;
 
@@ -206,24 +205,6 @@ impl Inventory {
 #[derive(Default, Component, Reflect)]
 pub struct Equipment {
     pub inventory: Inventory,
-}
-
-#[derive(Error, Debug)]
-pub enum InventoryError {
-    #[error("adding item(s) to the inventory would exceed the maximum space by `{overage}`")]
-    NoSpaceLeft { overage: usize },
-    #[error("attempted to remove `{want_to_remove}` of `{item_name}` when only {exists} exists")]
-    InsufficientItems {
-        want_to_remove: usize,
-        exists: usize,
-        item_name: String,
-    },
-    #[error("attempted to equip unequippable item `{item_name}`")]
-    Unequippable { item_name: String },
-    #[error("missing either an `Inventory` or `Equipment` component on the provided entity")]
-    Unqueriable,
-    #[error("could not find requested item with handle")]
-    ItemNotFound,
 }
 
 // #[cfg(test)]

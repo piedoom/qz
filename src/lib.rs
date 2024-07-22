@@ -7,6 +7,7 @@
 // #![deny(missing_docs)]
 
 mod components;
+mod error;
 mod plugins;
 mod resources;
 mod states;
@@ -16,5 +17,5 @@ mod util;
 pub mod prelude {
     use super::*;
     #[allow(unused_imports)]
-    pub use {components::*, plugins::*, resources::*, states::*, util::*};
+    pub use {components::*, error::*, plugins::*, resources::*, states::*, util::*};
 }

@@ -1,0 +1,19 @@
+#![enable(implicit_some)]
+(
+    name: "store",
+    credits: 100000,
+    mass: 100.0,
+    health: 1000,
+    size: 2.0,
+    inventory: [
+        ("scrap_metal.item", 100),
+    ],
+    inventory_space: 1000,
+    equipped: [
+        ("dart.weapon", 1),
+        ("solar_array.energy", 1),
+    ],
+    store: [
+        ("scrap_metal.item", (sell: Scaled(1.0), buy: Scaled(0.7))),
+    ],
+)

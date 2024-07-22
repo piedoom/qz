@@ -22,6 +22,10 @@ impl Faction {
         Self(rand::thread_rng().next_u32())
     }
 
+    pub fn none() -> Faction {
+        Self::default()
+    }
+
     pub fn id(&self) -> u32 {
         self.0
     }

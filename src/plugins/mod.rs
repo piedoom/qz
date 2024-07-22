@@ -18,7 +18,7 @@ use bevy::{app::PluginGroupBuilder, prelude::*};
 use bevy_egui::EguiPlugin;
 use bevy_turborand::prelude::RngPlugin;
 
-use crate::{prelude::AppState, resources::Factions};
+use crate::{error::GameError, prelude::AppState, resources::Factions};
 
 /// Plugins required for displaying the game on a client device
 pub struct ClientPlugins;
@@ -58,6 +58,7 @@ impl Plugin for ClientInitPlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<AppState>()
             .insert_resource(Gravity(Vec3::ZERO))
-            .init_resource::<Factions>();
+            .init_resource::<Factions>()
+            .add_event::<GameError>();
     }
 }

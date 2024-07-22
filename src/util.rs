@@ -137,11 +137,12 @@ pub fn item<'a>(
     items.get(handle).map(|x| (x, handle.clone()))
 }
 
-pub fn handle_errors<E>(In(result): In<Result<(), E>>)
+pub fn handle_errors<E>(In(result): In<Result<(), E>>, mut errors: EventWriter<GameError>)
 where
-    E: std::fmt::Display,
+    E: std::fmt::Display + Into<GameError>,
 {
     if let Err(e) = result {
         eprintln!("{e}");
+        errors.send(e.into());
     }
 }

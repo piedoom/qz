@@ -39,6 +39,7 @@ pub struct Building {
     pub mass: f32,
     pub health: usize,
     pub size: f32,
+
     #[serde(default)]
     pub drops: Vec<(String, DropRate)>,
     #[serde(default)]
@@ -46,8 +47,13 @@ pub struct Building {
     pub inventory_space: usize,
     #[serde(default)]
     pub equipped: Vec<(String, usize)>,
+
     #[serde(default)]
     pub spawner: Option<Spawner>,
+    #[serde(default)]
+    pub store: Option<Vec<(String, SaleOptions)>>,
+    #[serde(default)]
+    pub credits: Option<usize>,
 }
 
 #[derive(Serialize, Deserialize, Reflect, Asset, Clone, Debug)]

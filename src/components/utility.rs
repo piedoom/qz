@@ -7,3 +7,6 @@ pub struct Lifetime {
     pub created: Duration,
     pub lifetime: Duration,
 }
+
+#[derive(Component, Reflect)]
+pub struct Grid;

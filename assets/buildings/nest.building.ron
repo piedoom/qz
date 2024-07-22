@@ -2,8 +2,8 @@
 (
     name: "nest",
     mass: 100.0,
-    health: 1000,
-    size: 1.0,
+    health: 100,
+    size: 2.0,
     drops: [],
     inventory: [],
     inventory_space: 1000,

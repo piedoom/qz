@@ -49,11 +49,11 @@ fn draw_controllers(
     }
 }
 
-fn draw_slices(mut gizmos: Gizmos) {
-    for i in 0..3 {
+fn draw_slices(mut gizmos: Gizmos, grids: Query<&Slice, With<Grid>>) {
+    for grid in grids.iter() {
         gizmos
             .grid_3d(
-                Vec3::new(0f32, 0f32, Slice(i).z()),
+                Vec3::new(0f32, 0f32, grid.z()),
                 default(),
                 UVec3::new(128, 128, 0),
                 Vec3::splat(16f32),
@@ -93,9 +93,12 @@ fn draw_health_and_damage(
 
 fn draw_structures(
     mut gizmos: Gizmos,
-    structures: Query<(&Transform, &Structure, Option<&Destroyed>, Option<&Spawner>)>,
+    structures: Query<
+        (&Transform, &Collider, Option<&Destroyed>, Option<&Spawner>),
+        With<Structure>,
+    >,
 ) {
-    for (transform, _structure, maybe_destroyed, maybe_spawner) in structures.iter() {
+    for (transform, collider, maybe_destroyed, maybe_spawner) in structures.iter() {
         let color = if maybe_destroyed.is_none() {
             match maybe_spawner.is_some() {
                 true => Color::srgb(0.9, 0.7, 0.1),
@@ -104,7 +107,12 @@ fn draw_structures(
         } else {
             Color::srgb(1., 0., 0.)
         };
-        gizmos.cuboid(*transform, color);
+        gizmos.cuboid(
+            transform.with_scale(Vec3::splat(
+                collider.shape().as_ball().unwrap().radius * 2.0,
+            )),
+            color,
+        );
     }
 }
 

@@ -4,9 +4,8 @@ use avian3d::{
     prelude::{DistanceJoint, Joint},
     spatial_query::{SpatialQuery, SpatialQueryFilter},
 };
-use bevy::{ecs::query::QueryEntityError, prelude::*};
+use bevy::prelude::*;
 use events::{DockEvent, StoreEvent};
-use thiserror::Error;
 
 pub struct StructuresPlugin;
 
@@ -141,18 +140,4 @@ fn handle_store_events(
         }
     }
     Ok(())
-}
-
-#[derive(Debug, Error)]
-enum StoreError {
-    #[error(transparent)]
-    QueryEntityError(#[from] QueryEntityError),
-    #[error(transparent)]
-    CreditsError(#[from] CreditsError),
-    #[error(transparent)]
-    InventoryError(#[from] InventoryError),
-    #[error("not enough items")]
-    NotEnoughItems,
-    #[error("not enough credits")]
-    NotEnoughCredits,
 }

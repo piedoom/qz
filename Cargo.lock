@@ -1133,8 +1133,10 @@ dependencies = [
  "bevy_common_assets",
  "bevy_egui",
  "bevy_turborand",
+ "big-brain",
  "bimap",
  "bitflags 2.6.0",
+ "egui-toast",
  "leafwing-input-manager",
  "rand",
  "serde",
@@ -1307,6 +1309,27 @@ dependencies = [
  "wasm-bindgen",
  "web-sys",
  "winit",
+]
+
+[[package]]
+name = "big-brain"
+version = "0.21.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6d63be86096c124b994d3319bf90fa5cfce24f6b785e5f14b3f00a1fad7c4049"
+dependencies = [
+ "bevy",
+ "big-brain-derive",
+]
+
+[[package]]
+name = "big-brain-derive"
+version = "0.21.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3d3075957305018e206ef1b845e134248ad2058f1676597fd61d79bbb42fae31"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -1901,6 +1924,15 @@ dependencies = [
  "emath",
  "epaint",
  "nohash-hasher",
+]
+
+[[package]]
+name = "egui-toast"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6652cccda84ba174437caa128e4e28a3502a3c62c9e39e381c24f1f0445946f1"
+dependencies = [
+ "egui",
 ]
 
 [[package]]

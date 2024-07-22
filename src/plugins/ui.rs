@@ -1,7 +1,8 @@
 use crate::prelude::*;
 use bevy::prelude::*;
 use bevy_egui::*;
-use egui::Slider;
+use egui::{Align2, Color32, Slider, Stroke};
+use egui_toast::{Toast, ToastKind, ToastOptions, Toasts};
 use events::{EquipEvent, InventoryEvent, StoreEvent};
 
 pub struct UiPlugin;
@@ -18,6 +19,7 @@ fn draw_hud(
     mut inv_events: EventWriter<InventoryEvent>,
     mut selected_item: Local<Option<Item>>,
     mut store_events: EventWriter<StoreEvent>,
+    mut errors: EventReader<GameError>,
     items: Res<Assets<Item>>,
     inventories: Query<&Inventory>,
     energy: Query<&Energy>,
@@ -250,4 +252,29 @@ fn draw_hud(
             });
         });
     }
+
+    let mut toasts = Toasts::new()
+        .anchor(Align2::RIGHT_BOTTOM, (-10.0, -10.0)) // 10 units from the bottom right corner
+        .direction(egui::Direction::BottomUp);
+
+    for error in errors.read() {
+        toasts.add(Toast {
+            text: format!("{error}").into(),
+            kind: ToastKind::Error,
+            options: ToastOptions::default()
+                .duration_in_seconds(5.0)
+                .show_progress(true),
+            ..Default::default()
+        });
+    }
+
+    egui::CentralPanel::default()
+        .frame(egui::Frame {
+            fill: Color32::TRANSPARENT,
+            stroke: Stroke::NONE,
+            ..default()
+        })
+        .show(contexts.ctx_mut(), |ui| {
+            toasts.show(ui.ctx());
+        });
 }

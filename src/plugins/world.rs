@@ -7,7 +7,6 @@ use events::WorldEvent;
 use leafwing_input_manager::prelude::*;
 use rand::seq::SliceRandom;
 use rand::Rng;
-use thiserror::Error;
 
 use crate::prelude::*;
 
@@ -52,6 +51,7 @@ impl Plugin for WorldPlugin {
             .register_type::<components::WeaponType>()
             .add_event::<WorldEvent>()
             .insert_resource(ClearColor(Color::BLACK))
+            .insert_resource(AmbientLight::NONE)
             .add_systems(OnEnter(AppState::main()), setup)
             .add_systems(
                 Update,
@@ -70,7 +70,6 @@ impl Plugin for WorldPlugin {
 
 fn setup(
     mut cmd: Commands,
-    mut events: EventWriter<WorldEvent>,
     mut factions: ResMut<Factions>,
     library: Res<Library>,
     items: Res<Assets<Item>>,
@@ -117,79 +116,53 @@ fn setup(
     ));
 
     // Spawn camera
-    cmd.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(0f32, -2f32, 48.0).looking_at(Vec3::ZERO, Dir3::Z),
-        ..default()
-    });
-
-    // spawn base
-    let (_, scrap_metal_handle) = item("scrap_metal.item", &items, &library).unwrap();
     cmd.spawn((
-        Structure,
-        Credits::new(100_000),
-        Store {
-            items: [(
-                scrap_metal_handle,
-                SaleOptions {
-                    sell: SaleOption::Scaled(1.0),
-                    buy: SaleOption::Scaled(0.7),
-                },
-            )]
-            .into(),
+        Camera3dBundle {
+            transform: Transform::from_xyz(0f32, -2f32, 36.0).looking_at(Vec3::ZERO, Dir3::Z),
+            ..default()
         },
-        Inventory::with_capacity(1000),
-        Health::from(1500),
-        Damage::default(),
-        Mass(100000f32),
-        Collider::sphere(2f32),
-        RigidBody::Dynamic,
-        player_alliegance.clone(),
-        Dockings::default(),
-        CollisionLayers {
-            memberships: LayerMask::from([PhysicsCategory::Structure]),
-            filters: LayerMask::from([PhysicsCategory::Weapon, PhysicsCategory::Structure]),
+        FogSettings {
+            color: Color::srgb(0.25, 0.25, 0.25),
+            falloff: FogFalloff::Linear {
+                start: 5.0,
+                end: 20.0,
+            },
+            ..default()
         },
-        LockedAxes::ROTATION_LOCKED,
-        Transform::default_z(),
     ));
 
-    // // spawn gates
-    // for (translation, (from, to)) in [
-    //     (Vec2::new(-10f32, -10f32), (0, 1)),
-    //     (Vec2::new(10f32, 5f32), (1, 2)),
-    //     (Vec2::new(10f32, 15f32), (2, 0)),
-    // ]
-    // .into_iter()
-    // {
-    //     events.send(WorldEvent::SpawnGate {
-    //         from: from.into(),
-    //         to: to.into(),
-    //         translation,
-    //         radius: 2.0,
-    //     });
-    // }
-
-    // for (translation, slice) in [
-    //     (Vec2::new(10f32, -8f32), 1),
-    //     (Vec2::new(-4f32, 2f32), 1),
-    //     (Vec2::new(-10f32, 8f32), 2),
-    //     (Vec2::new(4f32, 2f32), 2),
-    //     (Vec2::new(6f32, 4f32), 2),
-    // ]
-    // .into_iter()
-    // {
-    //     events.send(WorldEvent::SpawnBuilding {
-    //         name: "nest".into(),
-    //         slice: Slice(slice),
-    //         translation,
-    //         rotation: 0f32,
-    //         alliegance: Alliegance {
-    //             faction: enemy_faction,
-    //             allies: [enemy_faction].into(),
-    //             enemies: [player_faction].into(),
-    //         },
-    //     });
-    // }
+    // spawn base
+    // let (_, scrap_metal_handle) = item("scrap_metal.item", &items, &library).unwrap();
+    // cmd.spawn((
+    //     Structure,
+    //     Credits::new(100_000),
+    //     Store {
+    //         items: [(
+    //             scrap_metal_handle.clone(),
+    //             SaleOptions {
+    //                 sell: SaleOption::Scaled(1.0),
+    //                 buy: SaleOption::Scaled(0.7),
+    //             },
+    //         )]
+    //         .into(),
+    //     },
+    //     Inventory::with_capacity(1000)
+    //         .with(scrap_metal_handle.clone(), 100, &items)
+    //         .unwrap(),
+    //     Health::from(1500),
+    //     Damage::default(),
+    //     Mass(100000f32),
+    //     Collider::sphere(2f32),
+    //     RigidBody::Dynamic,
+    //     player_alliegance.clone(),
+    //     Dockings::default(),
+    //     CollisionLayers {
+    //         memberships: LayerMask::from([PhysicsCategory::Structure]),
+    //         filters: LayerMask::from([PhysicsCategory::Weapon, PhysicsCategory::Structure]),
+    //     },
+    //     LockedAxes::ROTATION_LOCKED,
+    //     Transform::default_z(),
+    // ));
 }
 
 fn manage_slice_transforms(
@@ -358,34 +331,51 @@ fn manage_world_events(
                 }
             }
             WorldEvent::SpawnSlice(slice) => {
+                // Show a background grid
+                cmd.spawn((
+                    Grid,
+                    *slice,
+                    Transform::z_from_parts(&Vec2::ZERO, &0f32, slice),
+                ));
+
                 const SEPARATION_SCALAR: f32 = 24.0;
-                let gate_pos = {
-                    Vec2::new(rng.f32() - 0.5, rng.f32() - 0.5)
-                        * rng.f32()
-                        * ((**slice as f32 * 0.1) + 1.0)
-                        * SEPARATION_SCALAR
+                let store_chance = rng.chance(1f64 / 3f64);
+
+                // Rotate in a random direction and cast outwards
+                let mut rand_point = || -> Vec2 {
+                    let mut t = Transform::default_z();
+                    t.rotate_z(rng.f32() * TAU);
+                    let point = t.forward() * SEPARATION_SCALAR;
+                    point.truncate()
                 };
 
                 new_events.push(WorldEvent::SpawnGate {
                     from: *slice,
                     to: (**slice + 1).into(),
-                    translation: gate_pos,
+                    translation: rand_point(),
                     radius: 2.0,
                 });
 
                 let player_faction = *factions.get_faction("player").unwrap();
                 let enemy_faction = *factions.get_faction("enemy").unwrap();
 
-                let nest_pos = {
-                    Vec2::new(rng.f32() - 0.5, rng.f32() - 0.5)
-                        * rng.f32()
-                        * ((**slice as f32 * 0.1) + 1.0)
-                        * SEPARATION_SCALAR
-                };
+                if store_chance {
+                    new_events.push(WorldEvent::SpawnBuilding {
+                        name: "store".to_string(),
+                        slice: *slice,
+                        translation: rand_point(),
+                        rotation: 0f32,
+                        alliegance: Alliegance {
+                            faction: Faction::none(),
+                            allies: FactionSet::all(),
+                            enemies: [enemy_faction].into(),
+                        },
+                    })
+                }
 
                 new_events.push(WorldEvent::SpawnBuilding {
                     name: "nest".into(),
-                    translation: nest_pos, // TODO
+                    translation: rand_point(), // TODO
                     rotation: 0f32,
                     slice: *slice,
                     alliegance: Alliegance {
@@ -402,7 +392,19 @@ fn manage_world_events(
                 slice,
                 alliegance,
             } => {
-                let building = library
+                let Building {
+                    name,
+                    mass,
+                    health,
+                    size,
+                    drops,
+                    inventory,
+                    inventory_space,
+                    equipped,
+                    spawner,
+                    store,
+                    credits,
+                } = library
                     .building(name)
                     .and_then(|building| buildings.get(building.id()))
                     .ok_or_else(|| WorldEventError::AssetNotFound(name.to_string()))?
@@ -412,12 +414,21 @@ fn manage_world_events(
                     Name::new(name.clone()),
                     Structure,
                     *slice,
-                    Health::from(building.health),
+                    Health::from(health),
                     Damage::default(),
                     RigidBody::Dynamic,
-                    Mass(100000f32),
-                    Collider::sphere(1f32),
+                    Mass(mass),
+                    Collider::sphere(size * 0.5),
                     alliegance.clone(),
+                    Inventory::with_capacity(inventory_space)
+                        .with_many_from_str(inventory.into_iter().collect(), &items, &library)
+                        .unwrap(),
+                    Drops(
+                        drops
+                            .into_iter()
+                            .filter_map(|(drop, rate)| library.item(drop).map(|x| (x, rate)))
+                            .collect(),
+                    ),
                     CollisionLayers {
                         memberships: LayerMask::from([PhysicsCategory::Structure]),
                         filters: LayerMask::from([
@@ -429,8 +440,26 @@ fn manage_world_events(
                     Transform::z_from_parts(translation, rotation, slice),
                 ));
 
-                if let Some(spawner) = building.spawner {
+                // Add items to inventory
+
+                if let Some(spawner) = spawner {
                     entity.insert((spawner,));
+                }
+
+                if let Some(credits) = credits {
+                    entity.insert(Credits::new(credits));
+                }
+
+                if let Some(store) = store {
+                    entity.insert((
+                        Store {
+                            items: store
+                                .into_iter()
+                                .map(|(n, o)| (library.item(n).unwrap(), o))
+                                .collect(),
+                        },
+                        Dockings::default(),
+                    ));
                 }
             }
             WorldEvent::SpawnGate {
@@ -462,12 +491,6 @@ fn manage_world_events(
     }
     // Success!
     Ok(())
-}
-
-#[derive(Error, Debug)]
-enum WorldEventError {
-    #[error("could not find asset with key {0}")]
-    AssetNotFound(String),
 }
 
 /// Keeps track of the furthest player and spawns a slice in advance.
