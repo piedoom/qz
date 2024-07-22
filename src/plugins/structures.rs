@@ -118,7 +118,7 @@ fn handle_store_events(
                 // Ensure there is enough space left
                 if to_inventory.space_remaining() >= retrieved_item.size * quantity {
                     // Ensure the inventory has the item available for transfer of the specified quantity
-                    if from_inventory.quantity(&item) < *quantity {
+                    if from_inventory.quantity(item) < *quantity {
                         return Err(StoreError::NotEnoughItems);
                     }
                     // Ensure there is enough credits to transfer

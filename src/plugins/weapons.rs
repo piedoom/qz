@@ -103,8 +103,8 @@ fn manage_weapons(
                                                 lifetime: Duration::from_secs_f32(lifetime),
                                             },
                                             Projectile { damage },
-                                            slice.clone(),
-                                            *alliegance,
+                                            *slice,
+                                            alliegance.clone(),
                                             Sensor,
                                             Collider::sphere(radius),
                                             CollisionLayers {
@@ -139,26 +139,25 @@ fn manage_projectile_collisions(
     {
         for colliding_entity in colliding_entities.iter() {
             // deteremine if the collided entity is an enemy
-            let alliegance = match maybe_alliegance {
-                Some(alliegance) => *alliegance,
+            let alliegance = match maybe_alliegance.cloned() {
+                Some(alliegance) => alliegance,
+                // If no alliegance, this will damage anything
                 None => Alliegance {
-                    faction: Faction::empty(),
-                    allies: Faction::empty(),
-                    enemies: Faction::all(),
+                    faction: Faction::default(),
+                    allies: FactionSet::default(),
+                    enemies: FactionSet::all(),
                 },
             };
 
+            // Get collisions
             if let Ok((mut damage, maybe_collided_alliegance)) = collided.get_mut(*colliding_entity)
             {
+                // Get the alliegance of the other object
                 let other_alliegance = match maybe_collided_alliegance {
-                    Some(alliegance) => *alliegance,
-                    None => Alliegance {
-                        faction: Faction::all(),
-                        allies: Faction::all(),
-                        enemies: Faction::all(),
-                    },
+                    Some(alliegance) => alliegance,
+                    None => &Alliegance::default(),
                 };
-                if alliegance.enemies.contains(other_alliegance.faction) {
+                if alliegance.enemies.contains(&other_alliegance.faction) {
                     **damage += projectile.damage as f32;
                     cmd.entity(projectile_entity).despawn_recursive();
                 }

@@ -1,9 +1,11 @@
 use std::time::Duration;
 
-use avian3d::prelude::*;
+use avian3d::{math::TAU, prelude::*};
 use bevy::{prelude::*, utils::hashbrown::HashMap};
 use events::WorldEvent;
 use leafwing_input_manager::prelude::*;
+use rand::seq::SliceRandom;
+use rand::Rng;
 use thiserror::Error;
 
 use crate::prelude::*;
@@ -19,13 +21,18 @@ impl Plugin for WorldPlugin {
             .register_type::<components::ChestsInRange>()
             .register_type::<components::Controller>()
             .register_type::<components::Craft>()
+            .register_type::<components::Credits>()
             .register_type::<components::Damage>()
             .register_type::<components::Destroyed>()
+            .register_type::<components::DockInRange>()
             .register_type::<components::Drops>()
             .register_type::<components::DropRate>()
+            .register_type::<components::Docked>()
+            .register_type::<components::Dockings>()
+            .register_type::<components::Energy>()
             .register_type::<components::Equipment>()
             .register_type::<components::EquipmentType>()
-            .register_type::<components::Dockings>()
+            .register_type::<components::Faction>()
             .register_type::<components::Gate>()
             .register_type::<components::Health>()
             .register_type::<components::InRange>()
@@ -37,6 +44,7 @@ impl Plugin for WorldPlugin {
             .register_type::<components::Projectile>()
             .register_type::<components::RepairBot>()
             .register_type::<components::Slice>()
+            .register_type::<components::Store>()
             .register_type::<components::SpawnedFrom>()
             .register_type::<components::Spawner>()
             .register_type::<components::Structure>()
@@ -59,10 +67,23 @@ impl Plugin for WorldPlugin {
     }
 }
 
-fn setup(mut cmd: Commands, library: Res<Library>, items: Res<Assets<Item>>) {
+fn setup(
+    mut cmd: Commands,
+    mut events: EventWriter<WorldEvent>,
+    mut factions: ResMut<Factions>,
+    library: Res<Library>,
+    items: Res<Assets<Item>>,
+) {
+    let player_faction = factions.register("player");
+    let enemy_faction = factions.register("enemy");
+    let player_alliegance = Alliegance {
+        faction: player_faction,
+        allies: [player_faction].into(),
+        enemies: [enemy_faction].into(),
+    };
     // Spawn player
     cmd.spawn((
-        Player,
+        Player(0), // TODO: handle IDs for multiplayer
         Name::new("Player"),
         InputManagerBundle::<Action>::default(),
         ChestsInRange {
@@ -74,11 +95,7 @@ fn setup(mut cmd: Commands, library: Res<Library>, items: Res<Assets<Item>>) {
             range: 5f32,
         },
         CraftBundle {
-            alliegance: Alliegance {
-                faction: Faction::PLAYER,
-                allies: Faction::PLAYER,
-                enemies: Faction::ENEMY,
-            },
+            alliegance: player_alliegance.clone(),
             inventory: Inventory::default(),
             equipment: Equipment {
                 inventory: Inventory::with_capacity(55)
@@ -105,7 +122,7 @@ fn setup(mut cmd: Commands, library: Res<Library>, items: Res<Assets<Item>>) {
     });
 
     // spawn base
-    let (scrap_metal, scrap_metal_handle) = item("scrap_metal.item", &items, &library).unwrap();
+    let (_, scrap_metal_handle) = item("scrap_metal.item", &items, &library).unwrap();
     cmd.spawn((
         Structure,
         Credits::new(100_000),
@@ -113,8 +130,8 @@ fn setup(mut cmd: Commands, library: Res<Library>, items: Res<Assets<Item>>) {
             items: [(
                 scrap_metal_handle,
                 SaleOptions {
-                    sell: Some(scrap_metal.value),
-                    buy: Some((scrap_metal.value as f32 * 0.8) as usize),
+                    sell: SaleOption::Scaled(1.0),
+                    buy: SaleOption::Scaled(0.7),
                 },
             )]
             .into(),
@@ -125,11 +142,7 @@ fn setup(mut cmd: Commands, library: Res<Library>, items: Res<Assets<Item>>) {
         Mass(100000f32),
         Collider::sphere(2f32),
         RigidBody::Dynamic,
-        Alliegance {
-            faction: Faction::PLAYER,
-            allies: Faction::PLAYER,
-            enemies: Faction::ENEMY,
-        },
+        player_alliegance.clone(),
         Dockings::default(),
         CollisionLayers {
             memberships: LayerMask::from([PhysicsCategory::Structure]),
@@ -139,82 +152,43 @@ fn setup(mut cmd: Commands, library: Res<Library>, items: Res<Assets<Item>>) {
         Transform::default_z(),
     ));
 
-    // spawn nest
-    let spawn_nest = |cmd: &mut Commands, position: Vec2, slice: usize| {
-        cmd.spawn((
-            Structure,
-            Spawner {
-                maximum: 4,
-                delay: Duration::from_secs(3),
-                last_spawned: default(),
+    // spawn gates
+    for (translation, (from, to)) in [
+        (Vec2::new(-10f32, -10f32), (0, 1)),
+        (Vec2::new(10f32, 5f32), (1, 2)),
+        (Vec2::new(10f32, 15f32), (2, 0)),
+    ]
+    .into_iter()
+    {
+        events.send(WorldEvent::SpawnGate {
+            from: from.into(),
+            to: to.into(),
+            translation,
+            radius: 2.0,
+        });
+    }
+
+    for (translation, slice) in [
+        (Vec2::new(10f32, -8f32), 1),
+        (Vec2::new(-4f32, 2f32), 1),
+        (Vec2::new(-10f32, 8f32), 2),
+        (Vec2::new(4f32, 2f32), 2),
+        (Vec2::new(6f32, 4f32), 2),
+    ]
+    .into_iter()
+    {
+        events.send(WorldEvent::SpawnBuilding {
+            name: "nest".into(),
+            slice: Slice(slice),
+            translation,
+            rotation: 0f32,
+            alliegance: Alliegance {
+                faction: enemy_faction,
+                allies: [enemy_faction].into(),
+                enemies: [player_faction].into(),
             },
-            Slice(slice),
-            Health::from(500),
-            Damage::default(),
-            RigidBody::Dynamic,
-            Mass(100000f32),
-            Collider::sphere(1f32),
-            Alliegance {
-                faction: Faction::ENEMY,
-                allies: Faction::ENEMY,
-                enemies: Faction::PLAYER,
-            },
-            CollisionLayers {
-                memberships: LayerMask::from([PhysicsCategory::Structure]),
-                filters: LayerMask::from([PhysicsCategory::Weapon, PhysicsCategory::Structure]),
-            },
-            LockedAxes::ROTATION_LOCKED,
-            Transform::default_z().with_translation(position.extend(0f32)),
-        ));
-    };
-
-    // spawn gate
-    cmd.spawn((
-        Structure,
-        Sensor,
-        Collider::sphere(2.0),
-        CollisionLayers {
-            memberships: LayerMask::ALL,
-            filters: LayerMask::ALL,
-        },
-        Slice(0),
-        Gate::new(Slice(1)),
-        Transform::from_xyz(-10f32, -10f32, 0f32),
-    ));
-
-    // spawn gate
-    cmd.spawn((
-        Structure,
-        Sensor,
-        Collider::sphere(2.0),
-        CollisionLayers {
-            memberships: LayerMask::ALL,
-            filters: LayerMask::ALL,
-        },
-        Slice(1),
-        Gate::new(Slice(2)),
-        Transform::from_xyz(10f32, 5f32, 0f32),
-    ));
-
-    // spawn gate
-    cmd.spawn((
-        Structure,
-        Sensor,
-        Collider::sphere(2.0),
-        CollisionLayers {
-            memberships: LayerMask::ALL,
-            filters: LayerMask::ALL,
-        },
-        Slice(2),
-        Gate::new(Slice(0)),
-        Transform::from_xyz(-10f32, 15f32, 0f32),
-    ));
-
-    spawn_nest(&mut cmd, (10f32, -8f32).into(), 1);
-    spawn_nest(&mut cmd, (-4f32, 2f32).into(), 1);
-    spawn_nest(&mut cmd, (-10f32, 8f32).into(), 2);
-    spawn_nest(&mut cmd, (4f32, 2f32).into(), 2);
-    spawn_nest(&mut cmd, (6f32, 4f32).into(), 2);
+        });
+    }
 }
 
 fn manage_slice_transforms(
@@ -233,29 +207,44 @@ fn manage_slice_transforms(
 }
 
 fn manage_spawners(
-    mut spawners: Query<(Entity, &mut Spawner, &Transform, &Slice), Without<Destroyed>>,
     mut events: EventWriter<WorldEvent>,
+    mut spawners: Query<(Entity, &mut Spawner, &Transform, &Slice), Without<Destroyed>>,
+    factions: Res<Factions>,
     spawned_from: Query<&SpawnedFrom, Without<Destroyed>>,
     time: Res<Time>,
 ) {
+    let enemy_faction = *factions.get_faction("enemy").unwrap();
+    let player_faction = *factions.get_faction("player").unwrap();
     for (entity, mut spawner, transform, slice) in spawners.iter_mut() {
-        let new_time = spawner.last_spawned + spawner.delay;
-        if time.elapsed() >= new_time {
-            if spawned_from.iter().filter(|s| s.0 == entity).count() < spawner.maximum {
-                // Spawn thing
-                events.send(WorldEvent::SpawnCreature {
-                    name: "pest",
-                    transform: *transform,
-                    slice: slice.0,
-                    alliegance: Alliegance {
-                        faction: Faction::ENEMY,
-                        allies: Faction::ENEMY,
-                        enemies: Faction::PLAYER,
-                    },
-                    from: Some(entity),
-                });
-                spawner.last_spawned = time.elapsed();
+        let mut rng = rand::thread_rng();
+        let new_time = spawner.last_tick + Duration::from_secs_f32(spawner.tick);
+        if time.elapsed() >= new_time
+            && spawned_from.iter().filter(|s| s.0 == entity).count() < spawner.maximum
+        {
+            // Go through our spawnlist and roll until we get a spawn
+            let mut spawns = spawner.spawns.clone();
+            // Shuffle potential spawns so we don't bias towards the first entries
+            spawns.shuffle(&mut rng);
+            for (spawn, d) in spawns.into_iter() {
+                if rng.gen_ratio(1, d as u32) {
+                    // Spawn thing
+                    events.send(WorldEvent::SpawnCreature {
+                        name: spawn.clone(),
+                        slice: *slice,
+                        translation: transform.translation.truncate(),
+                        rotation: rng.gen_range(0f32..TAU),
+                        alliegance: Alliegance {
+                            faction: enemy_faction,
+                            allies: [enemy_faction].into(),
+                            enemies: [player_faction].into(),
+                        },
+                        from: Some(entity),
+                    });
+                    break;
+                }
             }
+
+            spawner.last_tick = time.elapsed();
         }
     }
 }
@@ -282,18 +271,23 @@ fn setup_health(mut cmd: Commands, crafts: Query<(Entity, &Craft), Added<Craft>>
 
 fn manage_world_events(
     mut cmd: Commands,
-    mut events: EventReader<WorldEvent>,
+    mut events: ParamSet<(EventReader<WorldEvent>, EventWriter<WorldEvent>)>,
     library: Res<Library>,
     creatures: Res<Assets<Creature>>,
+    buildings: Res<Assets<Building>>,
     crafts: Res<Assets<Craft>>,
     items: Res<Assets<Item>>,
+    factions: Res<Factions>,
 ) -> Result<(), WorldEventError> {
-    for event in events.read() {
+    let mut new_events: Vec<WorldEvent> = Default::default();
+
+    for event in events.p0().read() {
         match event {
             WorldEvent::SpawnCreature {
                 name,
-                transform,
                 slice,
+                translation,
+                rotation,
                 alliegance,
                 from,
             } => {
@@ -323,7 +317,7 @@ fn manage_world_events(
                         library
                             .items
                             .get(&format!("items/{}.ron", drop_name))
-                            .and_then(|item| Some((item.clone(), drop_rate)))
+                            .map(|item| (item.clone(), drop_rate))
                     })
                     .collect();
                 let mut ent = cmd.spawn((
@@ -331,8 +325,8 @@ fn manage_world_events(
                         collider: Collider::sphere(craft.size * 0.5),
                         mass: Mass(craft.mass),
                         craft: craft.clone(),
-                        transform: *transform,
-                        alliegance: *alliegance,
+                        transform: Transform::z_from_parts(translation, rotation, slice),
+                        alliegance: alliegance.clone(),
                         inventory: Inventory::with_capacity(craft.capacity)
                             .with_many_from_str(
                                 inventory.into_iter().collect::<HashMap<String, usize>>(),
@@ -350,7 +344,7 @@ fn manage_world_events(
                                 )
                                 .unwrap(),
                         },
-                        slice: Slice(*slice),
+                        slice: *slice,
                         ..default()
                     },
                     Npc,
@@ -361,8 +355,87 @@ fn manage_world_events(
                     ent.insert((SpawnedFrom(*from),));
                 }
             }
+            WorldEvent::SpawnSlice(slice) => {
+                let player_faction = *factions.get_faction("player").unwrap();
+                let enemy_faction = *factions.get_faction("player").unwrap();
+                new_events.push(WorldEvent::SpawnBuilding {
+                    name: "nest".into(),
+                    translation: Vec2::default(), // TODO
+                    rotation: 0f32,
+                    slice: *slice,
+                    alliegance: Alliegance {
+                        faction: enemy_faction,
+                        allies: [enemy_faction].into(),
+                        enemies: [player_faction].into(),
+                    },
+                })
+            }
+            WorldEvent::SpawnBuilding {
+                name,
+                translation,
+                rotation,
+                slice,
+                alliegance,
+            } => {
+                let building = library
+                    .building(name)
+                    .and_then(|building| buildings.get(building.id()))
+                    .ok_or_else(|| WorldEventError::AssetNotFound(name.to_string()))?
+                    .clone();
+
+                let mut entity = cmd.spawn((
+                    Name::new(name.clone()),
+                    Structure,
+                    *slice,
+                    Health::from(building.health),
+                    Damage::default(),
+                    RigidBody::Dynamic,
+                    Mass(100000f32),
+                    Collider::sphere(1f32),
+                    alliegance.clone(),
+                    CollisionLayers {
+                        memberships: LayerMask::from([PhysicsCategory::Structure]),
+                        filters: LayerMask::from([
+                            PhysicsCategory::Weapon,
+                            PhysicsCategory::Structure,
+                        ]),
+                    },
+                    LockedAxes::ROTATION_LOCKED,
+                    Transform::z_from_parts(translation, rotation, slice),
+                ));
+
+                if let Some(spawner) = building.spawner {
+                    entity.insert((spawner,));
+                }
+            }
+            WorldEvent::SpawnGate {
+                from,
+                to,
+                translation,
+                radius: size,
+            } => {
+                cmd.spawn((
+                    Structure,
+                    Sensor,
+                    Collider::sphere(*size),
+                    CollisionLayers {
+                        memberships: LayerMask::ALL,
+                        filters: LayerMask::ALL,
+                    },
+                    *from,
+                    Gate::new(*to),
+                    Transform::z_from_parts(translation, &0f32, from),
+                ));
+            }
         }
     }
+
+    // Send any events queued while running
+    let mut writer = events.p1();
+    for new_event in new_events.into_iter() {
+        writer.send(new_event);
+    }
+    // Success!
     Ok(())
 }
 

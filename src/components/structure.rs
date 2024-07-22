@@ -3,6 +3,7 @@
 use std::time::Duration;
 
 use bevy::{prelude::*, utils::HashMap};
+use serde::{Deserialize, Serialize};
 
 use crate::prelude::*;
 
@@ -20,11 +21,13 @@ pub struct DockInRange {
     pub range: f32,
 }
 
-#[derive(Component, Reflect)]
+#[derive(Clone, Debug, Component, Reflect, Serialize, Deserialize)]
 pub struct Spawner {
+    pub spawns: Vec<(String, usize)>,
     pub maximum: usize,
-    pub delay: Duration,
-    pub last_spawned: Duration,
+    pub tick: f32,
+    #[serde(skip)]
+    pub last_tick: Duration,
 }
 
 /// Used to track the maximum created from our spawner
@@ -35,25 +38,41 @@ pub struct SpawnedFrom(pub Entity);
 #[derive(Component, Reflect, Default, Deref, DerefMut)]
 pub struct Dockings(pub HashMap<Entity, Entity>);
 
-#[derive(Component, Default)]
+#[derive(Component, Default, Reflect)]
 pub struct Store {
     pub items: HashMap<Handle<Item>, SaleOptions>,
 }
 
-/// Describes whether an item is listed for sale or for buying, as well as the
-/// deviation from base price to list
+/// Describes whether an item is listed for sale or for buying
+#[derive(Default, Reflect)]
 pub struct SaleOptions {
-    pub sell: Option<usize>,
-    pub buy: Option<usize>,
+    pub sell: SaleOption,
+    pub buy: SaleOption,
 }
 
 impl SaleOptions {}
 
-impl Default for SaleOptions {
-    fn default() -> Self {
-        Self {
-            sell: None,
-            buy: None,
+#[derive(Default, Reflect)]
+pub enum SaleOption {
+    #[default]
+    None,
+    /// Scale the base price determined on the item level
+    Scaled(f32),
+    /// Set a specific price
+    Absolute(usize),
+}
+
+impl SaleOption {
+    #[inline(always)]
+    pub fn enabled(&self) -> bool {
+        !matches!(self, Self::None)
+    }
+
+    pub fn value(&self, base_value: usize) -> Option<usize> {
+        match self {
+            SaleOption::None => None,
+            SaleOption::Scaled(scalar) => Some((base_value as f32 * scalar) as usize),
+            SaleOption::Absolute(value) => Some(*value),
         }
     }
 }

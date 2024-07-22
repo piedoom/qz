@@ -17,6 +17,8 @@ pub struct Library {
     pub creatures: HashMap<String, Handle<Creature>>,
     #[asset(key = "crafts", collection(typed, mapped))]
     pub crafts: HashMap<String, Handle<Craft>>,
+    #[asset(key = "buildings", collection(typed, mapped))]
+    pub buildings: HashMap<String, Handle<Building>>,
 }
 
 /// Creatures are never instantiated, they are constructed via systems
@@ -28,4 +30,40 @@ pub struct Creature {
     pub inventory: Vec<(String, usize)>,
     pub equipped: Vec<(String, usize)>,
     pub range: f32,
+}
+
+/// Buildings are never instantiated, they are constructed via systems
+#[derive(Debug, Clone, Component, Reflect, Asset, Serialize, Deserialize)]
+pub struct Building {
+    pub name: String,
+    pub mass: f32,
+    pub health: usize,
+    pub size: f32,
+    #[serde(default)]
+    pub drops: Vec<(String, DropRate)>,
+    #[serde(default)]
+    pub inventory: Vec<(String, usize)>,
+    pub inventory_space: usize,
+    #[serde(default)]
+    pub equipped: Vec<(String, usize)>,
+    #[serde(default)]
+    pub spawner: Option<Spawner>,
+}
+
+#[derive(Serialize, Deserialize, Reflect, Asset, Clone, Debug)]
+pub struct WorldRepresentation {
+    players: Vec<savefile::PlayerRepresentation>,
+}
+
+pub mod savefile {
+    use super::*;
+
+    #[derive(Serialize, Deserialize, Reflect, Clone, Debug)]
+    pub struct PlayerRepresentation {
+        pub player: Player,
+        pub inventory: Vec<(String, usize)>,
+        pub equipped: Vec<(String, usize)>,
+        pub credits: Credits,
+        pub slice: Slice,
+    }
 }

@@ -1,0 +1,19 @@
+#![enable(implicit_some)]
+(
+    name: "nest",
+    mass: 100.0,
+    health: 1000,
+    size: 1.0,
+    drops: [],
+    inventory: [],
+    inventory_space: 1000,
+    equipped: [
+        ("dart.weapon", 1),
+        ("solar_array.energy", 1),
+    ],
+    spawner: (
+        maximum: 4,
+        tick: 3.0,
+        spawns: [("pest", 2)],
+    ),
+)

@@ -53,7 +53,7 @@ fn draw_slices(mut gizmos: Gizmos) {
     for i in 0..3 {
         gizmos
             .grid_3d(
-                Vec3::new(0f32, 0f32, -i as f32 * DISTANCE_BETWEEN_SLICES),
+                Vec3::new(0f32, 0f32, Slice(i).z()),
                 default(),
                 UVec3::new(128, 128, 0),
                 Vec3::splat(16f32),
@@ -158,7 +158,7 @@ fn draw_gates(mut gizmos: Gizmos, gates: Query<(&Gate, &Slice, &Transform, &Coll
         let layer_difference = ***gate as f32 - **slice as f32;
         gizmos.arrow(
             transform.translation,
-            transform.translation - (Vec3::Z * (DISTANCE_BETWEEN_SLICES * layer_difference)),
+            transform.translation + (Vec3::Z * (Slice(1).z() * layer_difference)),
             COLOR,
         );
     }

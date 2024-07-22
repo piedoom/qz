@@ -24,10 +24,49 @@ impl RangeInclusiveExt<f32> for RangeInclusive<f32> {
     }
 }
 
+pub trait LibraryExt {
+    fn creature(&self, name: impl AsRef<str>) -> Option<Handle<Creature>>;
+    fn craft(&self, name: impl AsRef<str>) -> Option<Handle<Craft>>;
+    fn building(&self, name: impl AsRef<str>) -> Option<Handle<Building>>;
+    fn item(&self, name: impl AsRef<str>) -> Option<Handle<Item>>;
+}
+
+impl<'a> LibraryExt for Res<'a, Library> {
+    fn creature(&self, name: impl AsRef<str>) -> Option<Handle<Creature>> {
+        self.creatures
+            .get(&format!("creatures/{}.creature.ron", name.as_ref()))
+            .cloned()
+    }
+
+    fn craft(&self, name: impl AsRef<str>) -> Option<Handle<Craft>> {
+        self.crafts
+            .get(&format!("crafts/{}.craft.ron", name.as_ref()))
+            .cloned()
+    }
+
+    fn building(&self, name: impl AsRef<str>) -> Option<Handle<Building>> {
+        self.buildings
+            .get(&format!("buildings/{}.building.ron", name.as_ref()))
+            .cloned()
+    }
+
+    fn item(&self, name: impl AsRef<str>) -> Option<Handle<Item>> {
+        self.items
+            .get(&format!("items/{}.ron", name.as_ref()))
+            .cloned()
+    }
+}
+
 pub trait TransformExt {
     /// Default with Z-up
     fn default_z() -> Transform {
         Transform::default().looking_to(Dir3::X, Dir3::Z)
+    }
+
+    fn z_from_parts(translation: &Vec2, rotation: &f32, slice: &Slice) -> Transform {
+        let mut t = Transform::default_z().with_translation(translation.extend(slice.z()));
+        t.rotate_z(*rotation);
+        t
     }
 
     /// Calculate a direction needed to turn to face another transform along with facing accuracy

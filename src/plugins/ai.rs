@@ -88,9 +88,9 @@ fn update_in_range(
             .iter()
             .filter_map(|r| other.get(*r).ok())
         {
-            if alliegance.allies.contains(obj_alliegance.faction) {
+            if alliegance.allies.contains(&obj_alliegance.faction) {
                 in_range.allies.push(obj_entity);
-            } else if alliegance.enemies.contains(obj_alliegance.faction) {
+            } else if alliegance.enemies.contains(&obj_alliegance.faction) {
                 in_range.enemies.push(obj_entity);
             }
         }

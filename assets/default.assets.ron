@@ -11,4 +11,7 @@
     "crafts": Folder (
        path: "crafts",
     ),
+    "buildings": Folder (
+        path: "buildings",
+    ),
 })

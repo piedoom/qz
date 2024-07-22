@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-#[derive(Component, Reflect, Serialize, Deserialize, Default)]
+#[derive(Component, Reflect, Serialize, Deserialize, Default, Clone, Copy, Debug)]
 pub struct Credits(usize);
 
 impl Credits {
@@ -14,7 +14,7 @@ impl Credits {
     }
     pub fn transfer(&mut self, other: &mut Self, amount: usize) -> Result<(), CreditsError> {
         if self.0 < amount {
-            return Err(CreditsError::InsufficientCredits);
+            Err(CreditsError::InsufficientCredits)
         } else {
             self.0 -= amount;
             other.0 += amount;

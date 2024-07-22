@@ -44,11 +44,28 @@ pub enum InventoryEvent {
 #[derive(Event)]
 pub enum WorldEvent {
     SpawnCreature {
-        name: &'static str,
-        transform: Transform,
-        slice: usize,
+        name: String,
+        slice: Slice,
+        translation: Vec2,
+        rotation: f32,
+
         alliegance: Alliegance,
         from: Option<Entity>,
+    },
+    SpawnBuilding {
+        name: String,
+        slice: Slice,
+        translation: Vec2,
+        rotation: f32,
+
+        alliegance: Alliegance,
+    },
+    SpawnSlice(Slice),
+    SpawnGate {
+        from: Slice,
+        to: Slice,
+        translation: Vec2,
+        radius: f32,
     },
 }
 

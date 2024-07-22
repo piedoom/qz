@@ -80,12 +80,12 @@ impl Default for CraftBundle {
             mass: Mass(1f32),
             craft: Craft {
                 speed: 10f32,
-                rotation: 300f32,
+                rotation: 400f32,
                 brake: 200f32,
                 acceleration: 40f32,
                 health: 64,
                 size: 1f32,
-                mass: 2500f32,
+                mass: 100f32,
                 capacity: 100,
                 name: "craft".to_string(),
                 value: 1000,
@@ -95,11 +95,7 @@ impl Default for CraftBundle {
                 .lock_rotation_y()
                 .lock_rotation_x(),
             transform: Transform::default().looking_to(Dir3::X, Dir3::Z),
-            alliegance: Alliegance {
-                allies: Faction::empty(),
-                enemies: Faction::empty(),
-                faction: Faction::empty(),
-            },
+            alliegance: Alliegance::default(),
             inventory: Inventory::default(),
             linear_damping: LinearDamping::default(),
             equipment: Equipment::default(),

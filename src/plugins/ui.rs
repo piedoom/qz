@@ -158,17 +158,21 @@ fn draw_hud(
                                     ui.label(
                                         options
                                             .buy
+                                            .value(retrieved_item.value)
                                             .map(|x| x.to_string())
                                             .unwrap_or("None".to_string()),
                                     );
                                     ui.label(
                                         options
                                             .sell
+                                            .value(retrieved_item.value)
                                             .map(|x| x.to_string())
                                             .unwrap_or("None".to_string()),
                                     );
 
-                                    if let Some(selling_for) = options.sell {
+                                    if let Some(selling_for) =
+                                        options.sell.value(retrieved_item.value)
+                                    {
                                         if ui.button("buy 1").clicked() {
                                             store_events.send(StoreEvent::Buy {
                                                 buyer: player_entity,
@@ -180,7 +184,9 @@ fn draw_hud(
                                         }
                                     }
 
-                                    if let Some(buying_for) = options.buy {
+                                    if let Some(buying_for) =
+                                        options.buy.value(retrieved_item.value)
+                                    {
                                         if ui.button("sell 1").clicked() {
                                             store_events.send(StoreEvent::Sell {
                                                 seller: player_entity,

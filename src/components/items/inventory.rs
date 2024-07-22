@@ -92,12 +92,13 @@ impl Inventory {
             self.space_occupied += total_size;
             // Add items to the inventory. If we already have an item of the type,
             // get it from our hashmap and add. Otherwise, insert.
-            Ok(if let Some(existing_amount) = self.items.get_mut(&item) {
+            if let Some(existing_amount) = self.items.get_mut(&item) {
                 let new_amount = *existing_amount + amount;
                 *existing_amount = new_amount;
             } else {
                 self.items.insert(item, amount);
-            })
+            };
+            Ok(())
         }
     }
 

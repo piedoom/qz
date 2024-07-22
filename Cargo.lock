@@ -1132,6 +1132,8 @@ dependencies = [
  "bevy_asset_loader",
  "bevy_common_assets",
  "bevy_egui",
+ "bevy_turborand",
+ "bimap",
  "bitflags 2.6.0",
  "leafwing-input-manager",
  "rand",
@@ -1190,6 +1192,18 @@ dependencies = [
  "bevy_reflect",
  "serde",
  "thiserror",
+]
+
+[[package]]
+name = "bevy_turborand"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "80af7e4c275beaaf16d33c1b45993d126e97da992eaca76f89f702a75b6cc171"
+dependencies = [
+ "bevy",
+ "instant",
+ "serde",
+ "turborand",
 ]
 
 [[package]]
@@ -1294,6 +1308,12 @@ dependencies = [
  "web-sys",
  "winit",
 ]
+
+[[package]]
+name = "bimap"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "230c5f1ca6a325a32553f8640d31ac9b49f2411e901e427570154868b46da4f7"
 
 [[package]]
 name = "bindgen"
@@ -2491,6 +2511,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e05c02b5e89bff3b946cedeca278abc628fe811e604f027c45a8aa3cf793d0eb"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "instant"
+version = "0.1.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e0242819d153cba4b4b05a5a8f2a7e9bbf97b6055b2a002b395c96b5ff3c0222"
+dependencies = [
+ "cfg-if",
+ "js-sys",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]
@@ -4274,6 +4306,17 @@ name = "ttf-parser"
 version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8686b91785aff82828ed725225925b33b4fde44c4bb15876e5f7c832724c420a"
+
+[[package]]
+name = "turborand"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ffa9ae3c65785079fa553e8aea4ae4b12579b5c5029b4133b54ea3afb2e3e9fa"
+dependencies = [
+ "getrandom",
+ "instant",
+ "serde",
+]
 
 [[package]]
 name = "twox-hash"
