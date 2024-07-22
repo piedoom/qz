@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use avian3d::{math::TAU, prelude::*};
 use bevy::{prelude::*, utils::hashbrown::HashMap};
+use bevy_turborand::prelude::*;
 use events::WorldEvent;
 use leafwing_input_manager::prelude::*;
 use rand::seq::SliceRandom;
@@ -15,8 +16,7 @@ pub struct WorldPlugin;
 impl Plugin for WorldPlugin {
     fn build(&self, app: &mut App) {
         use crate::components;
-        app
-            // .register_type::<components::Alliegance>()
+        app.register_type::<components::Alliegance>()
             .register_type::<components::Chest>()
             .register_type::<components::ChestsInRange>()
             .register_type::<components::Controller>()
@@ -61,6 +61,7 @@ impl Plugin for WorldPlugin {
                     manage_slice_transforms.after(manage_gates),
                     manage_gates,
                     setup_health,
+                    spawn_new_slices,
                 )
                     .run_if(in_state(AppState::main())),
             );
@@ -152,43 +153,43 @@ fn setup(
         Transform::default_z(),
     ));
 
-    // spawn gates
-    for (translation, (from, to)) in [
-        (Vec2::new(-10f32, -10f32), (0, 1)),
-        (Vec2::new(10f32, 5f32), (1, 2)),
-        (Vec2::new(10f32, 15f32), (2, 0)),
-    ]
-    .into_iter()
-    {
-        events.send(WorldEvent::SpawnGate {
-            from: from.into(),
-            to: to.into(),
-            translation,
-            radius: 2.0,
-        });
-    }
+    // // spawn gates
+    // for (translation, (from, to)) in [
+    //     (Vec2::new(-10f32, -10f32), (0, 1)),
+    //     (Vec2::new(10f32, 5f32), (1, 2)),
+    //     (Vec2::new(10f32, 15f32), (2, 0)),
+    // ]
+    // .into_iter()
+    // {
+    //     events.send(WorldEvent::SpawnGate {
+    //         from: from.into(),
+    //         to: to.into(),
+    //         translation,
+    //         radius: 2.0,
+    //     });
+    // }
 
-    for (translation, slice) in [
-        (Vec2::new(10f32, -8f32), 1),
-        (Vec2::new(-4f32, 2f32), 1),
-        (Vec2::new(-10f32, 8f32), 2),
-        (Vec2::new(4f32, 2f32), 2),
-        (Vec2::new(6f32, 4f32), 2),
-    ]
-    .into_iter()
-    {
-        events.send(WorldEvent::SpawnBuilding {
-            name: "nest".into(),
-            slice: Slice(slice),
-            translation,
-            rotation: 0f32,
-            alliegance: Alliegance {
-                faction: enemy_faction,
-                allies: [enemy_faction].into(),
-                enemies: [player_faction].into(),
-            },
-        });
-    }
+    // for (translation, slice) in [
+    //     (Vec2::new(10f32, -8f32), 1),
+    //     (Vec2::new(-4f32, 2f32), 1),
+    //     (Vec2::new(-10f32, 8f32), 2),
+    //     (Vec2::new(4f32, 2f32), 2),
+    //     (Vec2::new(6f32, 4f32), 2),
+    // ]
+    // .into_iter()
+    // {
+    //     events.send(WorldEvent::SpawnBuilding {
+    //         name: "nest".into(),
+    //         slice: Slice(slice),
+    //         translation,
+    //         rotation: 0f32,
+    //         alliegance: Alliegance {
+    //             faction: enemy_faction,
+    //             allies: [enemy_faction].into(),
+    //             enemies: [player_faction].into(),
+    //         },
+    //     });
+    // }
 }
 
 fn manage_slice_transforms(
@@ -272,6 +273,7 @@ fn setup_health(mut cmd: Commands, crafts: Query<(Entity, &Craft), Added<Craft>>
 fn manage_world_events(
     mut cmd: Commands,
     mut events: ParamSet<(EventReader<WorldEvent>, EventWriter<WorldEvent>)>,
+    mut rng: ResMut<GlobalRng>,
     library: Res<Library>,
     creatures: Res<Assets<Creature>>,
     buildings: Res<Assets<Building>>,
@@ -356,11 +358,34 @@ fn manage_world_events(
                 }
             }
             WorldEvent::SpawnSlice(slice) => {
+                const SEPARATION_SCALAR: f32 = 24.0;
+                let gate_pos = {
+                    Vec2::new(rng.f32() - 0.5, rng.f32() - 0.5)
+                        * rng.f32()
+                        * ((**slice as f32 * 0.1) + 1.0)
+                        * SEPARATION_SCALAR
+                };
+
+                new_events.push(WorldEvent::SpawnGate {
+                    from: *slice,
+                    to: (**slice + 1).into(),
+                    translation: gate_pos,
+                    radius: 2.0,
+                });
+
                 let player_faction = *factions.get_faction("player").unwrap();
-                let enemy_faction = *factions.get_faction("player").unwrap();
+                let enemy_faction = *factions.get_faction("enemy").unwrap();
+
+                let nest_pos = {
+                    Vec2::new(rng.f32() - 0.5, rng.f32() - 0.5)
+                        * rng.f32()
+                        * ((**slice as f32 * 0.1) + 1.0)
+                        * SEPARATION_SCALAR
+                };
+
                 new_events.push(WorldEvent::SpawnBuilding {
                     name: "nest".into(),
-                    translation: Vec2::default(), // TODO
+                    translation: nest_pos, // TODO
                     rotation: 0f32,
                     slice: *slice,
                     alliegance: Alliegance {
@@ -443,4 +468,22 @@ fn manage_world_events(
 enum WorldEventError {
     #[error("could not find asset with key {0}")]
     AssetNotFound(String),
+}
+
+/// Keeps track of the furthest player and spawns a slice in advance.
+fn spawn_new_slices(
+    mut events: EventWriter<WorldEvent>,
+    mut cursor: Local<Slice>,
+    players: Query<&Slice, With<Player>>,
+) {
+    const SLICES_IN_ADVANCE: usize = 3;
+    let furthest_player = players
+        .iter()
+        .fold(0, |acc, p| if p.0 > acc { p.0 } else { acc });
+
+    for slice in **cursor..furthest_player + SLICES_IN_ADVANCE {
+        events.send(WorldEvent::SpawnSlice(slice.into()));
+    }
+
+    **cursor = furthest_player + SLICES_IN_ADVANCE;
 }
