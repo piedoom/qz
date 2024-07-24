@@ -8,7 +8,7 @@
 
 mod components;
 mod error;
-mod plugins;
+pub(crate) mod plugins;
 mod resources;
 mod states;
 mod util;

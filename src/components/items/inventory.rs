@@ -218,15 +218,6 @@ pub struct Equipment {
 
 //     use super::*;
 
-//     fn item(size: usize) -> Item {
-//         Item {
-//             name: "item name".to_string(),
-//             mass: 10.0,
-//             size,
-//             equipment: None,
-//         }
-//     }
-
 //     /// Successfully adds an item to the inventory
 //     #[test]
 //     fn add() {

@@ -17,7 +17,7 @@ impl Plugin for InventoryPlugin {
                     manage_inventory.pipe(handle_errors::<InventoryError>),
                     init_equipment,
                     manage_drops.pipe(handle_errors::<InventoryError>),
-                    update_chests_in_range,
+                    update_chests_in_range.run_if(resource_exists::<SpatialQueryPipeline>),
                 ),
             );
     }
@@ -232,16 +232,29 @@ fn update_chests_in_range(
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use events::{EquipEvent, InventoryEvent};
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use events::{EquipEvent, InventoryEvent};
 
-//     use super::*;
+    fn app() -> App {
+        // Setup app
+        let mut app = App::new();
+        app.add_plugins((
+            InventoryPlugin,
+            MinimalPlugins,
+            AssetPlugin::default(),
+            // crate::plugins::assets::AssetsPlugin,
+        ))
+        .add_event::<GameError>();
+        app
+    }
 
-//     #[test]
-//     fn create_with_capacity() {
-//         // Setup app
-//         let mut app = App::new();
-//         app.add_plugins((InventoryPlugin,));
-//     }
-// }
+    // #[test]
+    // fn test_inventory_init() {
+    //     let mut app = app();
+    //     let mut world = app.world();
+
+    //     // app.run();
+    // }
+}
