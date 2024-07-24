@@ -65,7 +65,8 @@ impl Inventory {
         amount: usize,
         items: &Assets<Item>,
     ) -> Result<Self, InventoryError> {
-        self.add(item, amount, items)?;
+        let retrieved_item = items.get(&item).ok_or(InventoryError::ItemNotFound)?;
+        self.add(item, retrieved_item.size, amount)?;
         Ok(self)
     }
 
@@ -73,13 +74,11 @@ impl Inventory {
     pub fn add(
         &mut self,
         item: Handle<Item>,
+        size: usize,
         amount: usize,
-        items: &Assets<Item>,
     ) -> Result<(), InventoryError> {
-        // Retrieve the item from storage
-        let retrieved_item = items.get(&item).ok_or(InventoryError::ItemNotFound)?;
         // Ensure we can handle the space
-        let total_size = retrieved_item.size * amount;
+        let total_size = size * amount;
         if self.space_occupied + total_size > self.capacity() {
             Err(InventoryError::NoSpaceLeft {
                 overage: self.space_occupied + total_size - self.capacity,
@@ -104,11 +103,10 @@ impl Inventory {
     pub fn remove(
         &mut self,
         item: Handle<Item>,
+        size: usize,
         amount: usize,
-        items: &Assets<Item>,
     ) -> Result<(), InventoryError> {
         // Retrieve the item from storage
-        let retrieved_item = items.get(&item).ok_or(InventoryError::ItemNotFound)?;
         match self.items.get_mut(&item) {
             Some(existing_amount) => {
                 // ensure the existing amount is more than the desired amount, if specified. In unspecified, we remove everything
@@ -116,12 +114,11 @@ impl Inventory {
                     return Err(InventoryError::InsufficientItems {
                         want_to_remove: amount,
                         exists: *existing_amount,
-                        item_name: retrieved_item.name.to_string(),
                     });
                 }
 
                 // Subtrack from our inventory space
-                self.space_occupied -= amount * retrieved_item.size;
+                self.space_occupied -= amount * size;
 
                 let new_amount = *existing_amount - amount;
                 *existing_amount = new_amount;
@@ -138,7 +135,6 @@ impl Inventory {
                 Err(InventoryError::InsufficientItems {
                     want_to_remove: amount,
                     exists: 0,
-                    item_name: retrieved_item.name.to_string(),
                 })
             }
         }
@@ -160,8 +156,9 @@ impl Inventory {
         amount: usize,
         items: &Assets<Item>,
     ) -> Result<usize, InventoryError> {
-        inventory.add(item.clone(), amount, items)?;
-        self.remove(item.clone(), amount, items)?;
+        let retrieved_item = items.get(&item).ok_or(InventoryError::ItemNotFound)?;
+        inventory.add(item.clone(), retrieved_item.size, amount)?;
+        self.remove(item.clone(), retrieved_item.size, amount)?;
         Ok(amount)
     }
 
@@ -178,7 +175,13 @@ impl Inventory {
         self.space_occupied = 0;
 
         // Drain into provided inventory
-        inventory.items.extend(self.items.drain());
+        for (item, amount) in self.items.drain() {
+            if let Some(existing_amount) = inventory.items.get_mut(&item) {
+                *existing_amount += amount
+            } else {
+                inventory.items.insert(item, amount);
+            }
+        }
 
         Ok(())
     }
@@ -194,7 +197,8 @@ impl Inventory {
                 .items
                 .get(&format!("items/{}.ron", k))
                 .ok_or(InventoryError::ItemNotFound)?;
-            self.add(item.clone(), *v, items)?;
+            let retrieved_item = items.get(item).ok_or(InventoryError::ItemNotFound)?;
+            self.add(item.clone(), retrieved_item.size, *v)?;
         }
         Ok(self)
     }

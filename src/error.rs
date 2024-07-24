@@ -24,15 +24,14 @@ pub enum WorldEventError {
     AssetNotFound(String),
 }
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum InventoryError {
     #[error("adding item(s) to the inventory would exceed the maximum space by `{overage}`")]
     NoSpaceLeft { overage: usize },
-    #[error("attempted to remove `{want_to_remove}` of `{item_name}` when only {exists} exists")]
+    #[error("attempted to remove `{want_to_remove}` when `{exists}` exists")]
     InsufficientItems {
         want_to_remove: usize,
         exists: usize,
-        item_name: String,
     },
     #[error("attempted to equip unequippable item `{item_name}`")]
     Unequippable { item_name: String },

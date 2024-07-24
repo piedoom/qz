@@ -186,7 +186,8 @@ fn manage_drops(
         let mut rng = rand::thread_rng();
         for (item, amount) in items_to_drop {
             let amount = rng.gen_range(amount.min..=amount.max);
-            inv.add(item.clone(), amount, &items).unwrap();
+            let retrieved_item = items.get(item).ok_or(InventoryError::ItemNotFound)?;
+            inv.add(item.clone(), retrieved_item.size, amount).unwrap();
         }
 
         // Spawn drops in a chest
@@ -250,11 +251,13 @@ mod tests {
         app
     }
 
-    // #[test]
-    // fn test_inventory_init() {
-    //     let mut app = app();
-    //     let mut world = app.world();
-
-    //     // app.run();
-    // }
+    #[test]
+    fn test_inventory_add_over() {
+        let mut inv = Inventory::with_capacity(10);
+        assert!(inv.add(Handle::default(), 3, 1).is_ok());
+        assert!(inv.add(Handle::default(), 6, 1).is_ok());
+        assert!(inv
+            .add(Handle::default(), 3, 1)
+            .is_err_and(|x| x == InventoryError::NoSpaceLeft { overage: 2 }))
+    }
 }
