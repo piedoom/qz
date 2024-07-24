@@ -198,6 +198,11 @@ impl Inventory {
         }
         Ok(self)
     }
+
+    pub fn drain(&mut self) -> hashbrown::hash_map::Drain<Handle<Item>, usize> {
+        self.space_occupied = 0;
+        self.items.drain()
+    }
 }
 
 /// Equipment needs to use the parent/child tree. This allows

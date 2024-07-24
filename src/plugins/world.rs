@@ -52,6 +52,8 @@ impl Plugin for WorldPlugin {
             .add_event::<WorldEvent>()
             .insert_resource(ClearColor(Color::BLACK))
             .insert_resource(AmbientLight::NONE)
+            .init_resource::<WorldCursor>()
+            .init_resource::<DepthCursor>()
             .add_systems(OnEnter(AppState::main()), setup)
             .add_systems(
                 Update,
@@ -130,39 +132,6 @@ fn setup(
             ..default()
         },
     ));
-
-    // spawn base
-    // let (_, scrap_metal_handle) = item("scrap_metal.item", &items, &library).unwrap();
-    // cmd.spawn((
-    //     Structure,
-    //     Credits::new(100_000),
-    //     Store {
-    //         items: [(
-    //             scrap_metal_handle.clone(),
-    //             SaleOptions {
-    //                 sell: SaleOption::Scaled(1.0),
-    //                 buy: SaleOption::Scaled(0.7),
-    //             },
-    //         )]
-    //         .into(),
-    //     },
-    //     Inventory::with_capacity(1000)
-    //         .with(scrap_metal_handle.clone(), 100, &items)
-    //         .unwrap(),
-    //     Health::from(1500),
-    //     Damage::default(),
-    //     Mass(100000f32),
-    //     Collider::sphere(2f32),
-    //     RigidBody::Dynamic,
-    //     player_alliegance.clone(),
-    //     Dockings::default(),
-    //     CollisionLayers {
-    //         memberships: LayerMask::from([PhysicsCategory::Structure]),
-    //         filters: LayerMask::from([PhysicsCategory::Weapon, PhysicsCategory::Structure]),
-    //     },
-    //     LockedAxes::ROTATION_LOCKED,
-    //     Transform::default_z(),
-    // ));
 }
 
 fn manage_slice_transforms(
@@ -247,6 +216,7 @@ fn manage_world_events(
     mut cmd: Commands,
     mut events: ParamSet<(EventReader<WorldEvent>, EventWriter<WorldEvent>)>,
     mut rng: ResMut<GlobalRng>,
+    cursor: Res<WorldCursor>,
     library: Res<Library>,
     creatures: Res<Assets<Creature>>,
     buildings: Res<Assets<Building>>,
@@ -338,32 +308,57 @@ fn manage_world_events(
                     Transform::z_from_parts(&Vec2::ZERO, &0f32, slice),
                 ));
 
-                const SEPARATION_SCALAR: f32 = 24.0;
-                let store_chance = rng.chance(1f64 / 3f64);
+                let player_faction = *factions.get_faction("player").unwrap();
+                let enemy_faction = *factions.get_faction("enemy").unwrap();
 
                 // Rotate in a random direction and cast outwards
-                let mut rand_point = || -> Vec2 {
+                let rand_point = |rng: &mut GlobalRng| -> Vec2 {
                     let mut t = Transform::default_z();
                     t.rotate_z(rng.f32() * TAU);
                     let point = t.forward() * SEPARATION_SCALAR;
                     point.truncate()
                 };
 
+                if ***cursor == 0 {
+                    // always spawn a store on layer 0
+                    new_events.push(WorldEvent::SpawnBuilding {
+                        name: "store".to_string(),
+                        slice: *slice,
+                        translation: rand_point(&mut rng),
+                        rotation: 0f32,
+                        alliegance: Alliegance {
+                            faction: Faction::none(),
+                            allies: FactionSet::all(),
+                            enemies: [enemy_faction].into(),
+                        },
+                    })
+                } else {
+                    let home_gate_chance = rng.chance(1f64 / 8f64);
+                    if home_gate_chance {
+                        new_events.push(WorldEvent::SpawnGate {
+                            from: *slice,
+                            to: 0.into(),
+                            translation: rand_point(&mut rng),
+                            radius: 2.0,
+                        });
+                    }
+                }
+
+                const SEPARATION_SCALAR: f32 = 24.0;
+                let store_chance = rng.chance(1f64 / 3f64);
+
                 new_events.push(WorldEvent::SpawnGate {
                     from: *slice,
                     to: (**slice + 1).into(),
-                    translation: rand_point(),
+                    translation: rand_point(&mut rng),
                     radius: 2.0,
                 });
-
-                let player_faction = *factions.get_faction("player").unwrap();
-                let enemy_faction = *factions.get_faction("enemy").unwrap();
 
                 if store_chance {
                     new_events.push(WorldEvent::SpawnBuilding {
                         name: "store".to_string(),
                         slice: *slice,
-                        translation: rand_point(),
+                        translation: rand_point(&mut rng),
                         rotation: 0f32,
                         alliegance: Alliegance {
                             faction: Faction::none(),
@@ -375,7 +370,7 @@ fn manage_world_events(
 
                 new_events.push(WorldEvent::SpawnBuilding {
                     name: "nest".into(),
-                    translation: rand_point(), // TODO
+                    translation: rand_point(&mut rng), // TODO
                     rotation: 0f32,
                     slice: *slice,
                     alliegance: Alliegance {
@@ -496,17 +491,25 @@ fn manage_world_events(
 /// Keeps track of the furthest player and spawns a slice in advance.
 fn spawn_new_slices(
     mut events: EventWriter<WorldEvent>,
-    mut cursor: Local<Slice>,
+    mut cursor: ResMut<WorldCursor>,
+    mut depth: ResMut<DepthCursor>,
     players: Query<&Slice, With<Player>>,
 ) {
-    const SLICES_IN_ADVANCE: usize = 3;
-    let furthest_player = players
+    **depth = players
         .iter()
-        .fold(0, |acc, p| if p.0 > acc { p.0 } else { acc });
+        .fold(0, |acc, p| if p.0 > acc { p.0 } else { acc })
+        .into();
 
-    for slice in **cursor..furthest_player + SLICES_IN_ADVANCE {
-        events.send(WorldEvent::SpawnSlice(slice.into()));
+    if ***depth >= ***cursor {
+        events.send(WorldEvent::SpawnSlice(**cursor));
+        ***cursor = ***depth + 1;
     }
 
-    **cursor = furthest_player + SLICES_IN_ADVANCE;
+    // let slices_in_advance = if ***cursor == 0 { 1 } else { 3 };
+
+    // for slice in ***cursor..furthest_player + slices_in_advance {
+    //     events.send(WorldEvent::SpawnSlice(slice.into()));
+    // }
+
+    // ***cursor = furthest_player + slices_in_advance;
 }

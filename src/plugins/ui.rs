@@ -20,6 +20,7 @@ fn draw_hud(
     mut selected_item: Local<Option<Item>>,
     mut store_events: EventWriter<StoreEvent>,
     mut errors: EventReader<GameError>,
+    depth: Res<DepthCursor>,
     items: Res<Assets<Item>>,
     inventories: Query<&Inventory>,
     energy: Query<&Energy>,
@@ -275,6 +276,7 @@ fn draw_hud(
             ..default()
         })
         .show(contexts.ctx_mut(), |ui| {
+            ui.horizontal_top(|ui| ui.heading(format!("Depth: {}", ***depth)));
             toasts.show(ui.ctx());
         });
 }

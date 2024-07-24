@@ -50,6 +50,7 @@ impl PluginGroup for ClientPlugins {
             .add(ui::UiPlugin)
             .add(equipment::RepairsPlugin)
             .add(structures::StructuresPlugin)
+            .add(state::StatePlugin)
     }
 }
 

@@ -13,7 +13,18 @@ impl Gate {
 }
 
 #[derive(
-    Component, Reflect, Deref, Debug, DerefMut, Default, Clone, Copy, Serialize, Deserialize,
+    Component,
+    Reflect,
+    Deref,
+    Debug,
+    DerefMut,
+    Default,
+    Clone,
+    Copy,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
 )]
 pub struct Slice(pub usize);
 

@@ -4,5 +4,6 @@ pub mod events;
 mod factions;
 pub mod settings;
 mod util;
+mod world;
 
-pub use {action::*, assets::*, factions::Factions, settings::Settings, util::*};
+pub use {action::*, assets::*, factions::Factions, settings::Settings, util::*, world::*};
