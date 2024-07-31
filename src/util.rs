@@ -14,13 +14,13 @@ pub trait RangeInclusiveExt<T> {
     /// # Arguments
     ///
     /// * `at` - a normalized value describing the interpolation factor
-    fn lerp(&self, at: f32) -> T;
+    fn lerp(&self, at: f32) -> f32;
 }
 
 impl RangeInclusiveExt<f32> for RangeInclusive<f32> {
     fn lerp(&self, at: f32) -> f32 {
-        let delta = self.end() - self.start();
-        self.start() + (at * delta)
+        let delta = *self.end() - *self.start();
+        (*self.start() + (at * delta)).clamp(0.0, 1.0)
     }
 }
 
@@ -57,6 +57,13 @@ impl<'a> LibraryExt for Res<'a, Library> {
     }
 }
 
+pub trait TransformBundleExt {
+    fn default_z() -> TransformBundle {
+        TransformBundle::from_transform(Transform::default().looking_to(Dir3::X, Dir3::Z))
+    }
+}
+impl TransformBundleExt for TransformBundle {}
+
 pub trait TransformExt {
     /// Default with Z-up
     fn default_z() -> Transform {
@@ -70,17 +77,17 @@ pub trait TransformExt {
     }
 
     /// Calculate a direction needed to turn to face another transform along with facing accuracy
-    fn calculate_turn_angle(&self, other: impl Into<Transform>) -> (RotationDirection, f32);
+    fn calculate_turn_angle(&self, other: impl Into<Vec2>) -> (RotationDirection, f32);
 }
 
 impl TransformExt for Transform {
-    fn calculate_turn_angle(&self, other: impl Into<Transform>) -> (RotationDirection, f32) {
+    fn calculate_turn_angle(&self, other: impl Into<Vec2>) -> (RotationDirection, f32) {
         let other = other.into();
         // get the forward vector in 2D
         let forward = (self.rotation * Vec3::Z).xy();
 
         // get the vector from the ship to the enemy ship in 2D and normalize it.
-        let to_other = (self.translation.xy() - other.translation.xy()).normalize();
+        let to_other = (self.translation.xy() - other).normalize();
 
         // get the dot product between the enemy forward vector and the direction to the player.
         let forward_dot_other = forward.dot(to_other);
@@ -146,3 +153,10 @@ where
         errors.send(e.into());
     }
 }
+
+/// Denotes that a value is determined via reading the world. For example, we very often want to read
+/// the maximum energy capacity, but that value isn't actually stored anywhere as it is the combination
+/// of multiple entity/component values
+pub struct Cached<T>(T);
+
+impl<T> Cached<T> {}

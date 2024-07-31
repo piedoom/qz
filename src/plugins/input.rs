@@ -35,15 +35,20 @@ fn update_player_bindings(
     let mut set_player_bindings = || {
         if let Ok(mut player_bindings) = player_bindings.get_single_mut() {
             *player_bindings = InputMap::default()
-                .with(
+                .with_axis(
                     Action::Turn,
                     KeyboardVirtualAxis::new(
                         settings.controls.keyboard.left,
                         settings.controls.keyboard.right,
                     ),
                 )
-                .with(Action::Thrust, settings.controls.keyboard.thrust)
-                .with(Action::Brake, settings.controls.keyboard.brake)
+                .with_axis(
+                    Action::Thrust,
+                    KeyboardVirtualAxis::new(
+                        settings.controls.keyboard.brake,
+                        settings.controls.keyboard.thrust,
+                    ),
+                )
                 .with(Action::Fire, settings.controls.keyboard.fire)
                 .with(Action::Take, settings.controls.keyboard.take)
                 .with(Action::Interact, settings.controls.keyboard.interact);
@@ -106,9 +111,22 @@ fn apply_player_input(
         maybe_docked,
     ) in players.iter_mut()
     {
-        controller.angular_thrust = actions.value(&Action::Turn);
-        controller.thrust = actions.value(&Action::Thrust);
-        controller.brake = actions.value(&Action::Brake);
+        controller.angular_thrust = actions.clamped_value(&Action::Turn);
+
+        let thrust = actions.clamped_value(&Action::Thrust);
+        // There's definitely a prettier way to do this and i will find it out at some point and do it
+        match thrust.is_sign_positive() {
+            true => {
+                // We are thrusting
+                controller.brake = 0f32;
+                controller.thrust = thrust;
+            }
+            false => {
+                // We are braking
+                controller.thrust = 0f32;
+                controller.brake = -thrust;
+            }
+        }
 
         // Get cursor position
         let cursor_position = match camera.get_single() {
@@ -129,7 +147,7 @@ fn apply_player_input(
         // Get all weapons attached to the player
         for child in children.iter() {
             if let Ok(mut weapon) = weapons.get_mut(*child) {
-                weapon.wants_to_fire = actions.value(&Action::Fire) != 0f32;
+                weapon.wants_to_fire = actions.pressed(&Action::Fire);
                 weapon.target = cursor_position;
             }
         }

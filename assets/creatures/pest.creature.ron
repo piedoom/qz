@@ -5,13 +5,14 @@
     drops: [
         ("scrap_metal.item", (min: 2, max: 30, d: 3)),
         ("shotgun.weapon", (min: 1, max: 1, d: 9)),
-        ("solar_array.energy", (min: 1, max: 1, d: 18)),
+        ("solar_array.generator", (min: 1, max: 1, d: 18)),
     ],
     inventory: [
         ("scrap_metal.item", 3),
     ],
     equipped: [
         ("shotgun.weapon", 1),
-        ("minireactor.energy", 1),
+        ("minireactor.generator", 1),
+        ("ion.battery", 2),
     ],
 )

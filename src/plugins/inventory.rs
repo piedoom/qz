@@ -13,9 +13,7 @@ impl Plugin for InventoryPlugin {
             .add_systems(
                 Update,
                 (
-                    manage_equipment.pipe(handle_errors::<InventoryError>),
                     manage_inventory.pipe(handle_errors::<InventoryError>),
-                    init_equipment,
                     manage_drops.pipe(handle_errors::<InventoryError>),
                     update_chests_in_range.run_if(resource_exists::<SpatialQueryPipeline>),
                 ),
@@ -50,118 +48,6 @@ fn manage_inventory(
         }
     }
     Ok(())
-}
-
-fn manage_equipment(
-    mut cmd: Commands,
-    mut events: EventReader<events::EquipEvent>,
-    mut inv_equip: Query<(&mut Inventory, &mut Equipment)>,
-    children: Query<&Children>,
-    items: Query<&Handle<Item>>,
-    item_assets: Res<Assets<Item>>,
-) -> Result<(), InventoryError> {
-    for event in events.read() {
-        match event {
-            events::EquipEvent::Equip {
-                entity,
-                item,
-                transfer_from_inventory,
-            } => {
-                // get the inventory and equipment components of the given entity
-                let (mut inventory, mut equipment) = inv_equip
-                    .get_mut(*entity)
-                    .map_err(|_| InventoryError::Unqueriable)?;
-
-                if *transfer_from_inventory {
-                    // shuffle inventory
-                    inventory.transfer(item.clone(), &mut equipment.inventory, 1, &item_assets)?;
-                }
-
-                // Retrieve item
-                let retrieved_item = item_assets.get(item).ok_or(InventoryError::ItemNotFound)?;
-
-                // Add entity with given component
-                cmd.entity(*entity)
-                    .with_children(|cmd| match &retrieved_item.equipment {
-                        Some(equipment) => match equipment {
-                            EquipmentType::Weapon(weapon) => {
-                                cmd.spawn((
-                                    weapon.clone(),
-                                    item.clone(),
-                                    Name::new(retrieved_item.name.clone()),
-                                    Transform::default_z(),
-                                ));
-                            }
-                            EquipmentType::RepairBot(repair) => {
-                                cmd.spawn((
-                                    repair.clone(),
-                                    item.clone(),
-                                    Name::new(retrieved_item.name.clone()),
-                                    Transform::default_z(),
-                                ));
-                            }
-                            EquipmentType::Energy(energy) => {
-                                cmd.spawn((
-                                    energy.clone(),
-                                    item.clone(),
-                                    Name::new(retrieved_item.name.clone()),
-                                    Transform::default_z(),
-                                ));
-                            }
-                        },
-                        None => unreachable!(),
-                    });
-            }
-            events::EquipEvent::Unequip {
-                entity,
-                item,
-                transfer_into_inventory: manage_inventory,
-            } => {
-                // get the inventory and equipment components of the given entity
-                let (mut inventory, mut equipment) = inv_equip
-                    .get_mut(*entity)
-                    .map_err(|_| InventoryError::Unqueriable)?;
-
-                // Find and remove the item entity from our children
-                if let Some(item_entity) = children
-                    .iter_descendants(*entity)
-                    .find(|entity| items.get(*entity).map(|i| i == item).unwrap_or_default())
-                {
-                    cmd.entity(item_entity).despawn_recursive();
-
-                    // shuffle inventory
-                    if *manage_inventory {
-                        equipment.inventory.transfer(
-                            item.clone(),
-                            &mut inventory,
-                            1,
-                            &item_assets,
-                        )?;
-                    }
-                }
-            }
-        }
-    }
-    Ok(())
-}
-
-/// If entities are initialized with an equipment component instead of using events, we won't actually
-/// add child entities. This system initializes equipment entities with child entities so we can enable this.
-fn init_equipment(
-    mut events: EventWriter<EquipEvent>,
-    equipment: Query<(Entity, &Equipment), Added<Equipment>>,
-) {
-    for (entity, equip) in equipment.iter() {
-        for (item, amount) in equip.inventory.iter() {
-            for _ in 0..*amount {
-                events.send(EquipEvent::Equip {
-                    entity,
-                    item: item.clone(),
-                    transfer_from_inventory: false,
-                });
-            }
-        }
-    }
 }
 
 fn manage_drops(
@@ -230,34 +116,5 @@ fn update_chests_in_range(
             // Get only chest entities
             .filter_map(|item| chests.get_mut(*item).ok())
             .collect();
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use events::{EquipEvent, InventoryEvent};
-
-    fn app() -> App {
-        // Setup app
-        let mut app = App::new();
-        app.add_plugins((
-            InventoryPlugin,
-            MinimalPlugins,
-            AssetPlugin::default(),
-            // crate::plugins::assets::AssetsPlugin,
-        ))
-        .add_event::<GameError>();
-        app
-    }
-
-    #[test]
-    fn test_inventory_add_over() {
-        let mut inv = Inventory::with_capacity(10);
-        assert!(inv.add(Handle::default(), 3, 1).is_ok());
-        assert!(inv.add(Handle::default(), 6, 1).is_ok());
-        assert!(inv
-            .add(Handle::default(), 3, 1)
-            .is_err_and(|x| x == InventoryError::NoSpaceLeft { overage: 2 }))
     }
 }

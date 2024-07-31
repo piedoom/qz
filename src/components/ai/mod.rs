@@ -1,5 +1,8 @@
 //! Non players
 
+pub mod actions;
+pub mod scorers;
+
 use bevy::prelude::*;
 
 /// Tracks things in a specified range
@@ -28,4 +31,16 @@ impl Default for InRange {
             enemies: default(),
         }
     }
+}
+
+#[derive(Component)]
+pub enum Waypoint {
+    Entity(Entity),
+    Position(Vec2),
+}
+
+#[derive(Component)]
+pub enum Targeting {
+    Entity(Entity),
+    Position(Vec2),
 }

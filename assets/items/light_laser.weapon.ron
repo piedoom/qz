@@ -1,0 +1,19 @@
+(
+    name: "light laser",
+    value: 1200,
+    mass: 120.0,
+    size: 13,
+    equipment: Some(
+        Weapon(
+            Weapon(
+                weapon_type: LaserWeapon (
+                    range: 5.0,
+                    width: 0.2,
+                    tracking: 0.2,
+                    damage_per_second: 10.0,
+                    energy_per_second: 10.0,
+                )
+            )
+        )
+    )
+)

@@ -9,7 +9,7 @@
     inventory_space: 1000,
     equipped: [
         ("dart.weapon", 1),
-        ("solar_array.energy", 1),
+        ("solar_array.generator", 1),
     ],
     spawner: (
         maximum: 4,

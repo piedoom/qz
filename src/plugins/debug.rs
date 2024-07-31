@@ -1,5 +1,5 @@
 use avian3d::prelude::*;
-use bevy::prelude::*;
+use bevy::{asset::transformer::TransformedSubAsset, prelude::*};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 use crate::prelude::*;
@@ -16,6 +16,7 @@ impl Plugin for DebugPlugin {
                 (
                     draw_controllers,
                     draw_projectiles,
+                    draw_lasers,
                     draw_health_and_damage,
                     draw_slices,
                     draw_structures,
@@ -74,6 +75,20 @@ fn draw_projectiles(
             collider.shape().as_ball().unwrap().radius,
             Color::srgb(1.0, 0.0, 0.0),
         );
+    }
+}
+
+fn draw_lasers(mut gizmos: Gizmos, lasers: Query<(&GlobalTransform, &Collider, &Laser)>) {
+    for (transform, collider, laser) in lasers.iter() {
+        let mut transform: Transform = transform.compute_transform();
+        transform.scale = collider
+            .shape()
+            .as_cuboid()
+            .unwrap()
+            .half_extents
+            .xyz()
+            .into();
+        gizmos.cuboid(transform, Color::srgb(1.0, 0.0, 0.0));
     }
 }
 

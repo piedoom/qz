@@ -4,10 +4,10 @@
     mass: 80.0,
     size: 8,
     equipment: Some(
-        Energy(
-            Energy(
+        Generator(
+            Generator(
                 capacity: 24,
-                recharge_rate: 2.5,
+                recharge_rate: 20.5,
             ),
         ),
     ),

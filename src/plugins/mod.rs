@@ -17,6 +17,7 @@ use avian3d::{prelude::Gravity, PhysicsPlugins};
 use bevy::{app::PluginGroupBuilder, prelude::*};
 use bevy_egui::EguiPlugin;
 use bevy_turborand::prelude::RngPlugin;
+use big_brain::BigBrainPlugin;
 
 use crate::{error::GameError, prelude::AppState, resources::Factions};
 
@@ -36,6 +37,7 @@ impl PluginGroup for ClientPlugins {
             .add(EguiPlugin)
             .add(RngPlugin::default())
             .add(ClientInitPlugin)
+            .add(BigBrainPlugin::new(PreUpdate))
             // Crate
             .add(assets::AssetsPlugin)
             .add(settings::SettingsPlugin)
@@ -48,7 +50,7 @@ impl PluginGroup for ClientPlugins {
             .add(weapons::WeaponsPlugin)
             .add(utility::UtilityPlugin)
             .add(ui::UiPlugin)
-            .add(equipment::RepairsPlugin)
+            .add(equipment::EquipmentPlugin)
             .add(structures::StructuresPlugin)
             .add(state::StatePlugin)
     }

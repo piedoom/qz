@@ -37,9 +37,23 @@ pub enum WeaponType {
         /// Energy consumed by each shot
         energy: usize,
     },
+    LaserWeapon {
+        #[serde(default)]
+        tracking: f32,
+        damage_per_second: f32,
+        energy_per_second: f32,
+        range: f32,
+        width: f32,
+    },
 }
 
 #[derive(Clone, Reflect, Component)]
 pub struct Projectile {
     pub damage: usize,
+}
+
+#[derive(Clone, Reflect, Component)]
+pub struct Laser {
+    pub damage_per_second: f32,
+    pub range: f32,
 }

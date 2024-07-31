@@ -23,12 +23,13 @@ fn draw_hud(
     depth: Res<DepthCursor>,
     items: Res<Assets<Item>>,
     inventories: Query<&Inventory>,
-    energy: Query<&Energy>,
+    batteries: Query<&Battery>,
     children: Query<&Children>,
     stores: Query<&Store>,
     player: Query<
         (
             Entity,
+            &Energy,
             &Inventory,
             &Equipment,
             &ChestsInRange,
@@ -43,6 +44,7 @@ fn draw_hud(
     egui::SidePanel::new(egui::panel::Side::Left, "hud").show(contexts.ctx_mut(), |ui| {
         for (
             player_entity,
+            energy,
             player_inventory,
             equipment,
             chests_in_range,
@@ -57,14 +59,21 @@ fn draw_hud(
                 &mut (**health as f32 - **damage),
                 0f32..=**health as f32,
             ));
-            for child in children.iter_descendants(player_entity) {
-                if let Ok(energy) = energy.get(child) {
-                    ui.add(Slider::new(
-                        &mut energy.charge.clone(),
-                        0f32..=energy.capacity as f32,
-                    ));
-                }
-            }
+
+            let player_batteries = children
+                .iter_descendants(player_entity)
+                .filter_map(|child| batteries.get(child).ok());
+            let capacity = player_batteries.fold(0f32, |acc, i| acc + i.capacity());
+
+            ui.add(Slider::new(&mut energy.charge().clone(), 0f32..=capacity));
+            // for child in children.iter_descendants(player_entity) {
+            //     if let Ok(energy) = energy.get(child) {
+            //         ui.add(Slider::new(
+            //             &mut energy.charge().clone(),
+            //             0f32..=energy.capacity as f32,
+            //         ));
+            //     }
+            // }
 
             ui.heading(format!("Credits: {}", credits.get()));
 
@@ -240,13 +249,33 @@ fn draw_hud(
                                 ui.label(format!("speed: {}", speed));
                                 ui.label(format!("tracking: {}", tracking));
                             }
+                            WeaponType::LaserWeapon {
+                                tracking,
+                                damage_per_second,
+                                energy_per_second,
+                                range,
+                                width,
+                            } => {
+                                ui.heading("laser");
+                                ui.label(format!("range: {}s", range));
+                                ui.label(format!("damage: {}/s", damage_per_second));
+                                ui.label(format!("energy: {}/s", energy_per_second));
+                                ui.label(format!("width: {}s", width));
+                                ui.label(format!("tracking: {}", tracking));
+                            }
                         },
                         EquipmentType::RepairBot(r) => {
                             ui.label(format!("repair rate: {}/s", r.rate));
                         }
-                        EquipmentType::Energy(e) => {
+                        EquipmentType::Generator(e) => {
                             ui.label(format!("capacity: {}", e.capacity));
                             ui.label(format!("recharge rate: {}/s", e.recharge_rate));
+                        }
+                        EquipmentType::Battery(b) => {
+                            ui.label(format!("capacity: {}", b.capacity()));
+                        }
+                        EquipmentType::Armor(a) => {
+                            ui.label(format!("armor: {}", a.health));
                         }
                     }
                 }

@@ -17,6 +17,12 @@ pub struct Health(pub usize);
 #[derive(Component, Reflect, Deref, DerefMut, Default)]
 pub struct Damage(f32);
 
+// #[derive(Component, Reflect, Deref, DerefMut, Default)]
+// pub struct ShieldStore(f32);
+
+// #[derive(Component, Reflect, Deref, DerefMut, Default)]
+// pub struct EnergyStore(f32);
+
 impl From<usize> for Health {
     fn from(value: usize) -> Self {
         Self(value)
@@ -55,6 +61,7 @@ pub struct Craft {
 
 #[derive(Bundle)]
 pub struct CraftBundle {
+    pub energy: Energy,
     pub controller: Controller,
     pub rigid_body: RigidBody,
     pub collider: Collider,
@@ -63,17 +70,20 @@ pub struct CraftBundle {
     pub craft: Craft,
     pub locked_axes: LockedAxes,
     pub transform: Transform,
+    pub global_transform: GlobalTransform,
     pub alliegance: Alliegance,
     pub inventory: Inventory,
     pub equipment: Equipment,
     pub collision_layers: CollisionLayers,
     pub slice: Slice,
     pub credits: Credits,
+    pub rotation: Rotation,
 }
 
 impl Default for CraftBundle {
     fn default() -> Self {
         Self {
+            energy: Energy::default(),
             controller: Controller::default(),
             rigid_body: RigidBody::Dynamic,
             collider: Collider::sphere(0.5f32),
@@ -90,11 +100,9 @@ impl Default for CraftBundle {
                 name: "craft".to_string(),
                 value: 1000,
             },
-            locked_axes: LockedAxes::default()
-                .lock_translation_z()
-                .lock_rotation_y()
-                .lock_rotation_x(),
-            transform: Transform::default().looking_to(Dir3::X, Dir3::Z),
+            locked_axes: LockedAxes::default().lock_translation_z(),
+            // .lock_rotation_y() // TODO: Avian bug?
+            // .lock_rotation_x(),
             alliegance: Alliegance::default(),
             inventory: Inventory::default(),
             linear_damping: LinearDamping::default(),
@@ -105,6 +113,9 @@ impl Default for CraftBundle {
             },
             slice: default(),
             credits: default(),
+            transform: Transform::default(),
+            global_transform: GlobalTransform::IDENTITY,
+            rotation: Rotation(Transform::default_z().rotation),
         }
     }
 }

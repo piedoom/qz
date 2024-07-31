@@ -211,61 +211,22 @@ impl Inventory {
 
 /// Equipment needs to use the parent/child tree. This allows
 /// for multiple equips of the same type to be used at once
-#[derive(Default, Component, Reflect)]
+#[derive(Default, Component, Reflect, Clone)]
 pub struct Equipment {
     pub inventory: Inventory,
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use std::assert_matches::assert_matches;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-//     use super::*;
-
-//     /// Successfully adds an item to the inventory
-//     #[test]
-//     fn add() {
-//         let mut inv = Inventory::with_capacity(100);
-//         assert_matches!(inv.add(item(1), 1), Ok(()));
-//     }
-
-//     /// Successfully removes an item from the inventory
-//     #[test]
-//     fn remove() {
-//         let mut inv = Inventory::with_capacity(100);
-//         inv.add(item(1), 1).unwrap();
-//         assert_matches!(inv.remove(&item(1), Some(1)), Ok(1));
-//     }
-
-//     /// Successfully adds multiple items to the inventory
-//     #[test]
-//     fn advanced_add() {
-//         let mut inv = Inventory::with_capacity(10);
-//         assert_matches!(inv.add(item(2), 4), Ok(()));
-//     }
-
-//     // /// Successfully removes multiple items from the inventory
-//     // #[test]
-//     // fn advanced_remove() {
-//     //     let mut inv = Inventory::with_capacity(100);
-//     //     inv.add(item(1), 1).unwrap();
-//     //     assert_matches!(inv.remove(&item(1), Some(1)), Ok(1));
-//     // }
-
-//     /// Unsuccessfully attempts to add an item to a full inventory
-//     #[test]
-//     fn unsuccessful_add() {
-//         let mut inv = Inventory::with_capacity(1);
-//         inv.add(item(1), 1).unwrap();
-//         assert_matches!(inv.add(item(1), 1), Err(_));
-//     }
-
-//     /// Unsuccessfully attempts to remove more items than exists in the inventory
-//     #[test]
-//     fn unsuccessful_remove() {
-//         let mut inv = Inventory::with_capacity(100);
-//         inv.add(item(1), 2).unwrap();
-//         inv.remove(&item(1), Some(1)).unwrap();
-//         assert_matches!(inv.remove(&item(1), Some(2)), Err(_));
-//     }
-// }
+    #[test]
+    fn test_inventory_add_over() {
+        let mut inv = Inventory::with_capacity(10);
+        assert!(inv.add(Handle::default(), 3, 1).is_ok());
+        assert!(inv.add(Handle::default(), 6, 1).is_ok());
+        assert!(inv
+            .add(Handle::default(), 3, 1)
+            .is_err_and(|x| x == InventoryError::NoSpaceLeft { overage: 2 }))
+    }
+}

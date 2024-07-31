@@ -13,7 +13,9 @@ impl Plugin for AssetsPlugin {
                 "item.ron",
                 "weapon.ron",
                 "repair.ron",
-                "energy.ron",
+                "generator.ron",
+                "battery.ron",
+                "armor.ron",
             ]))
             .add_plugins(RonAssetPlugin::<Creature>::new(&["creature.ron"]))
             .add_plugins(RonAssetPlugin::<Craft>::new(&["craft.ron"]))

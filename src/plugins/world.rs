@@ -3,7 +3,8 @@ use std::time::Duration;
 use avian3d::{math::TAU, prelude::*};
 use bevy::{prelude::*, utils::hashbrown::HashMap};
 use bevy_turborand::prelude::*;
-use events::WorldEvent;
+use big_brain::prelude::*;
+use events::{EquipEvent, WorldEvent};
 use leafwing_input_manager::prelude::*;
 use rand::seq::SliceRandom;
 use rand::Rng;
@@ -28,7 +29,7 @@ impl Plugin for WorldPlugin {
             .register_type::<components::DropRate>()
             .register_type::<components::Docked>()
             .register_type::<components::Dockings>()
-            .register_type::<components::Energy>()
+            .register_type::<components::Generator>()
             .register_type::<components::Equipment>()
             .register_type::<components::EquipmentType>()
             .register_type::<components::Faction>()
@@ -87,7 +88,7 @@ fn setup(
     cmd.spawn((
         Player(0), // TODO: handle IDs for multiplayer
         Name::new("Player"),
-        InputManagerBundle::<Action>::default(),
+        InputManagerBundle::<crate::prelude::Action>::default(),
         ChestsInRange {
             chests: default(),
             range: 5f32,
@@ -103,9 +104,11 @@ fn setup(
                 inventory: Inventory::with_capacity(55)
                     .with_many_from_str(
                         [
-                            ("minireactor.energy".to_string(), 1),
-                            ("dart.weapon".to_string(), 1),
+                            ("minireactor.generator".to_string(), 1),
+                            ("light_laser.weapon".to_string(), 1),
                             ("autoweld.repair".to_string(), 1),
+                            ("ion.battery".to_string(), 2),
+                            ("iron.armor".to_string(), 2),
                         ]
                         .into(),
                         &items,
@@ -216,7 +219,7 @@ fn manage_world_events(
     mut cmd: Commands,
     mut events: ParamSet<(EventReader<WorldEvent>, EventWriter<WorldEvent>)>,
     mut rng: ResMut<GlobalRng>,
-    cursor: Res<WorldCursor>,
+    // mut equip_events: EventWriter<EquipEvent>,
     library: Res<Library>,
     creatures: Res<Assets<Creature>>,
     buildings: Res<Assets<Building>>,
@@ -299,6 +302,29 @@ fn manage_world_events(
                 if let Some(from) = from {
                     ent.insert((SpawnedFrom(*from),));
                 }
+                ent.insert(
+                    Thinker::build()
+                        .picker(FirstToScore { threshold: 0.8 })
+                        .when(
+                            scorers::Facing,
+                            Concurrently::build()
+                                .push(actions::Attack)
+                                .push(actions::Persue),
+                        )
+                        .when(
+                            EvaluatingScorer::build(
+                                scorers::Facing,
+                                LinearEvaluator::new_inversed(),
+                            ),
+                            actions::Persue,
+                        ),
+                    // .when(
+                    //     scorers::Danger {
+                    //         radius: 3f32..=15f32,
+                    //     },
+                    //     actions::Retreat,
+                    // ),
+                );
             }
             WorldEvent::SpawnSlice(slice) => {
                 // Show a background grid
@@ -319,7 +345,7 @@ fn manage_world_events(
                     point.truncate()
                 };
 
-                if ***cursor == 0 {
+                if **slice == 0 {
                     // always spawn a store on layer 0
                     new_events.push(WorldEvent::SpawnBuilding {
                         name: "store".to_string(),
@@ -405,6 +431,12 @@ fn manage_world_events(
                     .ok_or_else(|| WorldEventError::AssetNotFound(name.to_string()))?
                     .clone();
 
+                let equipment = Equipment {
+                    inventory: Inventory::with_capacity(inventory_space)
+                        .with_many_from_str(equipped.into_iter().collect(), &items, &library)
+                        .unwrap(),
+                };
+
                 let mut entity = cmd.spawn((
                     Name::new(name.clone()),
                     Structure,
@@ -418,6 +450,7 @@ fn manage_world_events(
                     Inventory::with_capacity(inventory_space)
                         .with_many_from_str(inventory.into_iter().collect(), &items, &library)
                         .unwrap(),
+                    equipment.clone(),
                     Drops(
                         drops
                             .into_iter()
@@ -435,7 +468,7 @@ fn manage_world_events(
                     Transform::z_from_parts(translation, rotation, slice),
                 ));
 
-                // Add items to inventory
+                // TODO: Add items to equipment
 
                 if let Some(spawner) = spawner {
                     entity.insert((spawner,));

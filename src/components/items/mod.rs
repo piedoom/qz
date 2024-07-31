@@ -37,7 +37,9 @@ pub struct ChestsInRange {
 pub enum EquipmentType {
     Weapon(Weapon),
     RepairBot(RepairBot),
-    Energy(Energy),
+    Generator(Generator),
+    Battery(Battery),
+    Armor(Armor),
 }
 
 impl Item {
@@ -46,7 +48,9 @@ impl Item {
             Some(eq) => match eq {
                 EquipmentType::Weapon(_) => "weapon",
                 EquipmentType::RepairBot(_) => "repair bot",
-                EquipmentType::Energy(_) => "energy",
+                EquipmentType::Generator(_) => "generator",
+                EquipmentType::Battery(_) => "battery",
+                EquipmentType::Armor(_) => "armor",
             },
             None => "item",
         }

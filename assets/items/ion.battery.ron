@@ -1,0 +1,11 @@
+(
+    name: "ion pack",
+    value: 50,
+    mass: 10.0,
+    size: 4,
+    equipment: Some(
+        Battery(
+            Battery(8.0),
+        ),
+    ),
+)

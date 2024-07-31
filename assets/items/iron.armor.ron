@@ -1,0 +1,13 @@
+(
+    name: "iron plates",
+    value: 250,
+    mass: 400.0,
+    size: 4,
+    equipment: Some(
+        Armor(
+            Armor (
+                health: 3,
+            ),
+        ),
+    ),
+)
