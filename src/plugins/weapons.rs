@@ -21,7 +21,7 @@ fn manage_weapons(
     mut cmd: Commands,
     mut weapons: Query<(Entity, &Parent, &mut Weapon)>,
     mut energy: Query<&mut Energy>,
-    mut lasers: Query<&mut Laser>,
+    mut damage: Query<&mut Damage>,
     children: Query<&Children>,
     parent_components: Query<(
         &Transform,
@@ -31,6 +31,7 @@ fn manage_weapons(
         Option<&Destroyed>,
     )>,
     time: Res<Time>,
+    sq: SpatialQuery,
 ) {
     for (entity, parent, mut weapon) in weapons.iter_mut() {
         // Get energy
@@ -132,39 +133,28 @@ fn manage_weapons(
                                 .consume(energy_per_second * time.delta_seconds())
                                 .is_ok()
                         {
-                            // Find the existing beam or create one
-                            let mut weapon = cmd.entity(entity);
-                            let has_laser = children
-                                .get(entity)
-                                .map(|children| {
-                                    children.iter().any(|child| lasers.contains(*child))
-                                })
-                                .ok()
-                                .unwrap_or_default();
-                            if !has_laser {
-                                let mut tb = TransformBundle::default_z();
-                                // Slide up laser to emit at midpoint of craft
-                                tb.local.translation += tb.local.right() * range * 0.5; // TODO: Why does this cause centerpoint to get skewed?
-                                let collider = Collider::cuboid(range, width, width);
-                                weapon.with_children(|cmd| {
-                                    cmd.spawn((
-                                        Laser {
-                                            damage_per_second,
-                                            range,
-                                        },
-                                        Sensor,
-                                        CollisionLayers {
-                                            memberships: PhysicsCategory::Weapon.into(),
-                                            filters: [
-                                                PhysicsCategory::Craft,
-                                                PhysicsCategory::Structure,
-                                            ]
-                                            .into(),
-                                        },
-                                        collider,
-                                        tb,
-                                    ));
-                                });
+                            let mut rotation = *transform;
+                            rotation.rotate_local_y(90f32.to_radians());
+
+                            let rot = angle_with_tracking(&weapon, *transform, tracking, 0f32);
+
+                            for hit in sq.shape_hits(
+                                &Collider::cuboid(width, width, range),
+                                transform.translation + (transform.down() * range * 0.5),
+                                default(),
+                                Dir3::new(rot.mul_vec3(transform.forward().into())).unwrap(),
+                                range,
+                                128,
+                                true,
+                                SpatialQueryFilter {
+                                    mask: [PhysicsCategory::Craft, PhysicsCategory::Structure]
+                                        .into(),
+                                    excluded_entities: [parent.get()].into(),
+                                },
+                            ) {
+                                if let Ok(mut damage) = damage.get_mut(hit.entity) {
+                                    **damage += damage_per_second * time.delta_seconds();
+                                }
                             }
                         } else {
                             cmd.entity(entity).despawn_descendants();
@@ -222,4 +212,25 @@ fn manage_damage(
             cmd.entity(entity).insert(Destroyed);
         }
     }
+}
+
+/// Utility to find the angle, with tracking in a set range
+fn angle_with_tracking(
+    weapon: &Weapon,
+    transform: Transform,
+    tracking: f32,
+    spread_angle: f32,
+) -> Quat {
+    // If we have tracking, find the additional angle
+    let (direction, added_angle) = {
+        match weapon.target {
+            Some(target) => transform.calculate_turn_angle(target.truncate()),
+            None => (RotationDirection::None, 0f32),
+        }
+    };
+
+    Quat::from_axis_angle(
+        Vec3::Y,
+        (-added_angle.min(tracking).max(-tracking) * (f32::from(direction))) + spread_angle,
+    )
 }

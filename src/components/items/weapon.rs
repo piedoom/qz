@@ -56,4 +56,5 @@ pub struct Projectile {
 pub struct Laser {
     pub damage_per_second: f32,
     pub range: f32,
+    pub width: f32,
 }

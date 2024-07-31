@@ -42,7 +42,7 @@ pub(crate) fn facing_scorer(
                     let (_, accuracy) =
                         transform.calculate_turn_angle(enemy_transform.translation.truncate());
                     // 1 is perfect accuracy, 0 is 180deg away
-                    1f32 - (accuracy / PI)
+                    1f32 - f32::abs(accuracy / PI)
                 }
                 None => 0f32,
             });

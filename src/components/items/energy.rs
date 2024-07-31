@@ -5,7 +5,6 @@ use thiserror::Error;
 /// Item that contributes to a parent entity's [`Energy`] store
 #[derive(Clone, Debug, Component, Reflect, Serialize, Deserialize, Default)]
 pub struct Generator {
-    pub capacity: usize,
     pub recharge_rate: f32,
 }
 

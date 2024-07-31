@@ -6,8 +6,7 @@
     equipment: Some(
         Generator(
             Generator(
-                capacity: 24,
-                recharge_rate: 20.5,
+                recharge_rate: 2.5,
             ),
         ),
     ),

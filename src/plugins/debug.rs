@@ -1,5 +1,5 @@
 use avian3d::prelude::*;
-use bevy::{asset::transformer::TransformedSubAsset, prelude::*};
+use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 use crate::prelude::*;
@@ -9,8 +9,11 @@ pub struct DebugPlugin;
 impl Plugin for DebugPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<DrawInspector>()
-            .add_plugins((WorldInspectorPlugin::new()
-                .run_if(resource_equals::<DrawInspector>(DrawInspector(true))),))
+            .add_plugins((
+                WorldInspectorPlugin::new()
+                    .run_if(resource_equals::<DrawInspector>(DrawInspector(true))),
+                PhysicsDebugPlugin::default(),
+            ))
             .add_systems(
                 Update,
                 (
@@ -78,18 +81,42 @@ fn draw_projectiles(
     }
 }
 
-fn draw_lasers(mut gizmos: Gizmos, lasers: Query<(&GlobalTransform, &Collider, &Laser)>) {
-    for (transform, collider, laser) in lasers.iter() {
-        let mut transform: Transform = transform.compute_transform();
-        transform.scale = collider
-            .shape()
-            .as_cuboid()
-            .unwrap()
-            .half_extents
-            .xyz()
-            .into();
-        gizmos.cuboid(transform, Color::srgb(1.0, 0.0, 0.0));
+fn draw_lasers(mut gizmos: Gizmos, weapons: Query<(&Weapon, &GlobalTransform)>) {
+    for (weapon, transform) in weapons
+        .iter()
+        .filter(|(w, _)| w.wants_to_fire && matches!(w.weapon_type, WeaponType::LaserWeapon { .. }))
+    {
+        if let WeaponType::LaserWeapon {
+            tracking,
+            damage_per_second,
+            energy_per_second,
+            range,
+            width,
+        } = weapon.weapon_type
+        {
+            let transform = transform.compute_transform();
+            let mut rotation = transform;
+            rotation.rotate_local_y(90f32.to_radians());
+
+            gizmos.rect(
+                transform.translation + (transform.down() * range * 0.5),
+                rotation.rotation,
+                Vec2::new(width, range),
+                Color::srgb(1.0, 0.0, 0.0),
+            )
+        } else {
+            unreachable!()
+        };
     }
+    // for (transform, collider, laser) in lasers.iter() {
+    //     let mut transform: Transform = transform.compute_transform();
+    //     transform.scale = collider
+    //         .shape()
+    //         .as_cuboid()
+    //         .unwrap()
+    //         .half_extents
+    //         .xyz()
+    //         .into();
 }
 
 fn draw_health_and_damage(

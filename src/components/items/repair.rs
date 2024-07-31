@@ -1,8 +1,5 @@
 use bevy::{
-    ecs::{
-        component::{ComponentHooks, StorageType},
-        world::DeferredWorld,
-    },
+    ecs::component::{ComponentHooks, StorageType},
     prelude::*,
 };
 use serde::{Deserialize, Serialize};

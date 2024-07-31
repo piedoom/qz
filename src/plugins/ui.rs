@@ -268,7 +268,6 @@ fn draw_hud(
                             ui.label(format!("repair rate: {}/s", r.rate));
                         }
                         EquipmentType::Generator(e) => {
-                            ui.label(format!("capacity: {}", e.capacity));
                             ui.label(format!("recharge rate: {}/s", e.recharge_rate));
                         }
                         EquipmentType::Battery(b) => {
