@@ -34,11 +34,12 @@ impl Plugin for DebugPlugin {
 
 fn draw_controllers(
     mut gizmos: Gizmos,
-    controllers: Query<(Entity, &Transform), With<Controller>>,
+    controllers: Query<(Entity, &Transform, &Collider), With<Controller>>,
     players: Query<&Player>,
     destroyed: Query<&Destroyed>,
 ) {
-    for (entity, transform) in controllers.iter() {
+    for (entity, transform, collider) in controllers.iter() {
+        let size = collider.shape().as_ball().unwrap().radius * 2f32;
         let pos = transform.translation;
         let f = transform.forward();
         let mut color = match players.get(entity).is_ok() {
@@ -48,7 +49,7 @@ fn draw_controllers(
         if destroyed.get(entity).is_ok() {
             color = Color::srgb(1., 0., 0.);
         }
-        gizmos.cuboid(*transform, color);
+        gizmos.cuboid(transform.with_scale(Vec3::splat(size)), color);
         gizmos.arrow(pos - *f, pos + *f, color);
     }
 }
@@ -86,14 +87,7 @@ fn draw_lasers(mut gizmos: Gizmos, weapons: Query<(&Weapon, &GlobalTransform)>) 
         .iter()
         .filter(|(w, _)| w.wants_to_fire && matches!(w.weapon_type, WeaponType::LaserWeapon { .. }))
     {
-        if let WeaponType::LaserWeapon {
-            tracking,
-            damage_per_second,
-            energy_per_second,
-            range,
-            width,
-        } = weapon.weapon_type
-        {
+        if let WeaponType::LaserWeapon { range, width, .. } = weapon.weapon_type {
             let transform = transform.compute_transform();
             let mut rotation = transform;
             rotation.rotate_local_y(90f32.to_radians());
@@ -108,15 +102,6 @@ fn draw_lasers(mut gizmos: Gizmos, weapons: Query<(&Weapon, &GlobalTransform)>) 
             unreachable!()
         };
     }
-    // for (transform, collider, laser) in lasers.iter() {
-    //     let mut transform: Transform = transform.compute_transform();
-    //     transform.scale = collider
-    //         .shape()
-    //         .as_cuboid()
-    //         .unwrap()
-    //         .half_extents
-    //         .xyz()
-    //         .into();
 }
 
 fn draw_health_and_damage(
@@ -190,8 +175,9 @@ fn draw_active_chests(
     const COLOR: Color = Color::srgb(1., 0., 1.);
     for chests in chests_in_range.iter() {
         for chest in chests.chests.iter() {
-            let transform = transforms.get(*chest).unwrap();
-            gizmos.circle(transform.translation, Dir3::Z, 1f32, COLOR);
+            if let Ok(transform) = transforms.get(*chest) {
+                gizmos.circle(transform.translation, Dir3::Z, 1f32, COLOR);
+            }
         }
     }
 }

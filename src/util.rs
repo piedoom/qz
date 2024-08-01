@@ -153,10 +153,3 @@ where
         errors.send(e.into());
     }
 }
-
-/// Denotes that a value is determined via reading the world. For example, we very often want to read
-/// the maximum energy capacity, but that value isn't actually stored anywhere as it is the combination
-/// of multiple entity/component values
-pub struct Cached<T>(T);
-
-impl<T> Cached<T> {}

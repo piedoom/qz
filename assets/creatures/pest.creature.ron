@@ -10,9 +10,8 @@
     inventory: [
         ("scrap_metal.item", 3),
     ],
-    equipped: [
-        ("shotgun.weapon", 1),
-        ("minireactor.generator", 1),
-        ("ion.battery", 2),
-    ],
+    equipped: (
+        equipped: ["shotgun.weapon", "minireactor.generator", "ion.battery"],
+        slots: [(Weapon, 1), (Generator, 1), (Battery, 1)],
+    ),
 )

@@ -1,3 +1,6 @@
+use std::usize;
+
+use avian3d::prelude::*;
 use bevy::{
     prelude::*,
     utils::{hashbrown, HashMap},
@@ -32,6 +35,14 @@ impl Default for Inventory {
 }
 
 impl Inventory {
+    pub fn max_capacity() -> Self {
+        Self {
+            capacity: usize::MAX,
+            space_occupied: 0,
+            items: HashMap::new(),
+        }
+    }
+
     pub fn quantity(&self, item: &Handle<Item>) -> usize {
         self.items.get(item).cloned().unwrap_or_default()
     }
@@ -140,6 +151,12 @@ impl Inventory {
         }
     }
 
+    pub fn mass(&self, items: &Assets<Item>) -> f32 {
+        self.items.iter().fold(0f32, |a, (handle, amt)| {
+            a + (items.get(handle).unwrap().mass * *amt as f32)
+        })
+    }
+
     pub fn is_empty(&self) -> bool {
         self.items.is_empty()
     }
@@ -207,13 +224,6 @@ impl Inventory {
         self.space_occupied = 0;
         self.items.drain()
     }
-}
-
-/// Equipment needs to use the parent/child tree. This allows
-/// for multiple equips of the same type to be used at once
-#[derive(Default, Component, Reflect, Clone)]
-pub struct Equipment {
-    pub inventory: Inventory,
 }
 
 #[cfg(test)]

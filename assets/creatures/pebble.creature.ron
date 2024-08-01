@@ -1,0 +1,12 @@
+(
+    name: "pebble",
+    craft: "pebble",
+    range: 12.0,
+    drops: [
+        ("scrap_metal.item", (min: 2, max: 30, d: 3)),
+    ],
+    equipped: (
+        equipped: ["dart_2.weapon", "minireactor.generator", "ion.battery", "ion.battery", "ion.battery", "ion.battery"],
+        slots: [(Weapon, 1), (Generator, 1), (Battery, 4)],
+    ),
+)

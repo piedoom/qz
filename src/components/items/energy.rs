@@ -1,15 +1,16 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
+
+use crate::error::EnergyError;
 
 /// Item that contributes to a parent entity's [`Energy`] store
-#[derive(Clone, Debug, Component, Reflect, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Component, Reflect, Serialize, Deserialize, Default, PartialEq)]
 pub struct Generator {
     pub recharge_rate: f32,
 }
 
 /// Item that contributes to the maximum storable [`Energy`] charge
-#[derive(Clone, Debug, Component, Reflect, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Component, Reflect, Serialize, Deserialize, Default, PartialEq)]
 pub struct Battery(f32);
 
 impl Battery {
@@ -69,10 +70,4 @@ impl From<f32> for Energy {
     fn from(value: f32) -> Self {
         Self(value)
     }
-}
-
-#[derive(Error, Debug)]
-pub enum EnergyError {
-    #[error("requested `{requested}` energy when only `{actual}` is available")]
-    InsufficientCharge { requested: f32, actual: f32 },
 }

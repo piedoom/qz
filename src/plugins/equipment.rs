@@ -1,6 +1,5 @@
 //! Shields, basically
 use bevy::prelude::*;
-use events::EquipEvent;
 
 use crate::prelude::*;
 
@@ -12,8 +11,8 @@ impl Plugin for EquipmentPlugin {
             (
                 handle_repairs,
                 handle_energy,
-                init_equipment,
-                manage_equipment.pipe(handle_errors::<InventoryError>),
+                manage_equipped_builders.run_if(resource_exists::<Library>),
+                manage_equipment.pipe(handle_errors::<EquipmentError>),
             ),
         );
     }
@@ -62,11 +61,11 @@ fn handle_energy(
 fn manage_equipment(
     mut cmd: Commands,
     mut events: EventReader<events::EquipEvent>,
-    mut inv_equip: Query<(&mut Inventory, &mut Equipment)>,
-    children: Query<&Children>,
-    items: Query<&Handle<Item>>,
-    item_assets: Res<Assets<Item>>,
-) -> Result<(), InventoryError> {
+    mut inventories: Query<&mut Inventory>,
+    equipped: Query<&Equipped>,
+    equipments: Query<&Equipment>,
+    items: Res<Assets<Item>>,
+) -> Result<(), EquipmentError> {
     for event in events.read() {
         match event {
             events::EquipEvent::Equip {
@@ -74,105 +73,80 @@ fn manage_equipment(
                 item,
                 transfer_from_inventory,
             } => {
-                // get the inventory and equipment components of the given entity
-                let (mut inventory, mut equipment) = inv_equip
-                    .get_mut(*parent_entity)
-                    .map_err(|_| InventoryError::Unqueriable)?;
+                // get the inventory and equipped components of the given entity
+                let equipped = equipped.get(*parent_entity)?;
 
-                if *transfer_from_inventory {
-                    // shuffle inventory
-                    inventory.transfer(item.clone(), &mut equipment.inventory, 1, &item_assets)?;
-                }
-
-                // Retrieve item
-                let retrieved_item = item_assets.get(item).ok_or(InventoryError::ItemNotFound)?;
-
-                // Add entity with given component
-                // Note we need to do this manually or `on_add` will not trigger
-                match &retrieved_item.equipment {
-                    Some(equipment) => {
-                        let entity = cmd
-                            .spawn((
-                                item.clone(),
-                                Name::new(retrieved_item.name.clone()),
-                                TransformBundle::default_z(),
-                            ))
-                            .id();
-
-                        // Manually set up parent/child relationship
-                        cmd.entity(*parent_entity).add_child(entity);
-                        cmd.entity(entity).set_parent(*parent_entity);
-
-                        let mut entity = cmd.entity(entity);
-                        match equipment {
-                            EquipmentType::Weapon(weapon) => {
-                                entity.insert(weapon.clone());
-                            }
-                            EquipmentType::RepairBot(repair) => {
-                                entity.insert(repair.clone());
-                            }
-                            EquipmentType::Generator(generator) => {
-                                entity.insert(generator.clone());
-                            }
-                            EquipmentType::Battery(battery) => {
-                                entity.insert(battery.clone());
-                            }
-                            EquipmentType::Armor(armor) => {
-                                entity.insert(armor.clone());
-                            }
-                        };
+                // Test that there is a slot available
+                let retrieved_item = items.get(item).unwrap().clone();
+                let id = retrieved_item.equipment.unwrap().id();
+                if equipped.available(&id) != 0 {
+                    if *transfer_from_inventory {
+                        // Remove item from inventory
+                        let mut inventory = inventories.get_mut(*parent_entity)?;
+                        inventory.remove(item.clone(), retrieved_item.size, 1)?;
                     }
-                    None => unreachable!(),
-                };
+                    // Add equip as a child
+                    let equipment_entity = cmd.spawn(()).id();
+                    cmd.entity(*parent_entity).add_child(equipment_entity);
+                    cmd.entity(equipment_entity)
+                        .set_parent(*parent_entity)
+                        .insert(Equipment::new(item.clone()));
+                } else {
+                    return Err(EquipmentError::SlotNotAvailable);
+                }
             }
             events::EquipEvent::Unequip {
                 entity,
-                item,
-                transfer_into_inventory: manage_inventory,
+                equipment,
+                transfer_into_inventory,
             } => {
-                // get the inventory and equipment components of the given entity
-                let (mut inventory, mut equipment) = inv_equip
-                    .get_mut(*entity)
-                    .map_err(|_| InventoryError::Unqueriable)?;
-
-                // Find and remove the item entity from our children
-                if let Some(item_entity) = children
-                    .iter_descendants(*entity)
-                    .find(|entity| items.get(*entity).map(|i| i == item).unwrap_or_default())
-                {
-                    cmd.entity(item_entity).despawn_recursive();
-
-                    // transfer equipment inventory into regular inventory
-                    if *manage_inventory {
-                        equipment.inventory.transfer(
-                            item.clone(),
-                            &mut inventory,
-                            1,
-                            &item_assets,
-                        )?;
-                    }
+                if *transfer_into_inventory {
+                    let eq = equipments.get(*equipment)?;
+                    let retrieved_item = items
+                        .get(&eq.handle())
+                        .ok_or(InventoryError::ItemNotFound)?;
+                    let mut inventory = inventories.get_mut(*entity)?;
+                    inventory.add(eq.handle(), retrieved_item.size, 1)?;
                 }
+                cmd.entity(*equipment).despawn_recursive();
             }
         }
     }
     Ok(())
 }
 
-/// If entities are initialized with an equipment component instead of using events, we won't actually
-/// add child entities. This system initializes equipment entities with child entities so we can enable this.
-fn init_equipment(
-    mut events: EventWriter<EquipEvent>,
-    equipment: Query<(Entity, &Equipment), Added<Equipment>>,
+fn manage_equipped_builders(
+    mut cmd: Commands,
+    library: Res<Library>,
+    builders: Query<(Entity, &EquippedBuilder)>,
 ) {
-    for (entity, equip) in equipment.iter() {
-        for (item, amount) in equip.inventory.iter() {
-            for _ in 0..*amount {
-                events.send(EquipEvent::Equip {
-                    entity,
-                    item: item.clone(),
-                    transfer_from_inventory: false,
-                });
-            }
+    // Add necessary equipped and child entities
+    for (entity, builder) in builders.iter() {
+        // Add empty equipped
+        cmd.entity(entity).insert((Equipped {
+            equipped: [].into(),
+            slots: builder.slots.iter().cloned().collect(),
+        },));
+
+        // Add children (manually)
+        // Child hooks will automatically update the equipment slots,
+        // but we do assume the `EquippedBuilder` defines a valid
+        // configuration
+        for item in &builder.equipped {
+            // get the item from the string
+            let item_handle = library.item(item).clone().unwrap();
+            // Spawn the equipment entity
+            let equipment_entity = cmd.spawn(()).id();
+            // Manually set up parent/child relationship. If we use the child builder,
+            // it won't work, see: https://github.com/bevyengine/bevy/issues/14545
+            cmd.entity(entity).add_child(equipment_entity);
+            cmd.entity(equipment_entity).set_parent(entity);
+
+            cmd.entity(equipment_entity)
+                .insert(Equipment::new(item_handle.clone()));
         }
+
+        // Remove self
+        cmd.entity(entity).remove::<EquippedBuilder>();
     }
 }

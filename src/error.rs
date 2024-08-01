@@ -12,10 +12,19 @@ pub enum GameError {
     InventoryError(#[from] InventoryError),
 
     #[error(transparent)]
+    EquipmentError(#[from] EquipmentError),
+
+    #[error(transparent)]
     WorldEventError(#[from] WorldEventError),
 
     #[error(transparent)]
     StoreError(#[from] StoreError),
+}
+
+#[derive(Error, Debug)]
+pub enum EnergyError {
+    #[error("requested `{requested}` energy when only `{actual}` is available")]
+    InsufficientCharge { requested: f32, actual: f32 },
 }
 
 #[derive(Error, Debug)]
@@ -39,6 +48,8 @@ pub enum InventoryError {
     Unqueriable,
     #[error("could not find requested item with handle")]
     ItemNotFound,
+    #[error(transparent)]
+    QueryEntityError(#[from] QueryEntityError),
 }
 
 #[derive(Debug, Error)]
@@ -53,4 +64,14 @@ pub enum StoreError {
     NotEnoughItems,
     #[error("not enough credits")]
     NotEnoughCredits,
+}
+
+#[derive(Debug, Error)]
+pub enum EquipmentError {
+    #[error(transparent)]
+    QueryEntityError(#[from] QueryEntityError),
+    #[error(transparent)]
+    InventoryError(#[from] InventoryError),
+    #[error("slot not available")]
+    SlotNotAvailable,
 }

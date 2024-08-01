@@ -132,12 +132,14 @@ fn apply_player_input(
         let cursor_position = match camera.get_single() {
             Ok((camera, camera_transform)) => match window.single().cursor_position() {
                 Some(viewport_position) => {
-                    let ray = camera
-                        .viewport_to_world(camera_transform, viewport_position)
-                        .unwrap();
-                    let toi =
-                        ray.intersect_plane(transform.translation, InfinitePlane3d::new(Vec3::Z));
-                    toi.map(|toi| ray.get_point(toi))
+                    if let Some(ray) = camera.viewport_to_world(camera_transform, viewport_position)
+                    {
+                        let toi = ray
+                            .intersect_plane(transform.translation, InfinitePlane3d::new(Vec3::Z));
+                        toi.map(|toi| ray.get_point(toi))
+                    } else {
+                        None
+                    }
                 }
                 None => None,
             },

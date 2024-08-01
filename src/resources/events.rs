@@ -22,7 +22,7 @@ pub enum EquipEvent {
     },
     Unequip {
         entity: Entity,
-        item: Handle<Item>,
+        equipment: Entity,
         transfer_into_inventory: bool,
     },
 }
@@ -38,6 +38,11 @@ pub enum InventoryEvent {
     TransferAll {
         from: Entity,
         to: Entity,
+    },
+    TossOverboard {
+        entity: Entity,
+        item: Handle<Item>,
+        amount: usize,
     },
 }
 

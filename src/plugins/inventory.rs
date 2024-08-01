@@ -13,6 +13,7 @@ impl Plugin for InventoryPlugin {
             .add_systems(
                 Update,
                 (
+                    recalculate_inventory_equipment_mass,
                     manage_inventory.pipe(handle_errors::<InventoryError>),
                     manage_drops.pipe(handle_errors::<InventoryError>),
                     update_chests_in_range.run_if(resource_exists::<SpatialQueryPipeline>),
@@ -22,8 +23,10 @@ impl Plugin for InventoryPlugin {
 }
 
 fn manage_inventory(
+    mut cmd: Commands,
     mut inventories: Query<&mut Inventory>,
     mut events: EventReader<events::InventoryEvent>,
+    transforms: Query<&Transform>,
     items: Res<Assets<Item>>,
 ) -> Result<(), InventoryError> {
     for event in events.read() {
@@ -44,6 +47,29 @@ fn manage_inventory(
                     .get_many_mut([*from, *to])
                     .map_err(|_| InventoryError::Unqueriable)?;
                 from.transfer_all(&mut to)?;
+            }
+            InventoryEvent::TossOverboard {
+                entity,
+                item,
+                amount,
+            } => {
+                let mut inventory = inventories.get_mut(*entity)?;
+                let retrieved_item = items.get(item).ok_or(InventoryError::ItemNotFound)?;
+                let transform = transforms.get(*entity)?;
+
+                inventory.remove(item.clone(), retrieved_item.size, *amount)?;
+
+                // Spawn tossed stuff in a chest
+                cmd.spawn((
+                    Chest,
+                    Inventory::max_capacity().with(item.clone(), *amount, &items)?,
+                    *transform,
+                    Collider::cuboid(0.5, 0.5, 0.5),
+                    CollisionLayers {
+                        memberships: PhysicsCategory::Item.into(),
+                        filters: LayerMask::NONE,
+                    },
+                ));
             }
         }
     }
@@ -91,6 +117,20 @@ fn manage_drops(
         }
     }
     Ok(())
+}
+
+// Recalculate the craft mass when it is changed
+fn recalculate_inventory_equipment_mass(
+    mut query: Query<
+        (&mut Mass, &Inventory, &Equipped, &Craft),
+        Or<(Changed<Inventory>, Changed<Equipped>)>,
+    >,
+    item_assets: Res<Assets<Item>>,
+    items: Query<&Equipment>,
+) {
+    for (mut mass, inventory, equipped, craft) in query.iter_mut() {
+        **mass = inventory.mass(&item_assets) + equipped.mass(&item_assets, &items) + craft.mass;
+    }
 }
 
 fn update_chests_in_range(

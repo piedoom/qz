@@ -26,9 +26,11 @@ pub struct Library {
 pub struct Creature {
     pub name: String,
     pub craft: String,
+    #[serde(default)]
     pub drops: Vec<(String, DropRate)>,
+    #[serde(default)]
     pub inventory: Vec<(String, usize)>,
-    pub equipped: Vec<(String, usize)>,
+    pub equipped: EquippedBuilder,
     pub range: f32,
 }
 
@@ -46,7 +48,7 @@ pub struct Building {
     pub inventory: Vec<(String, usize)>,
     pub inventory_space: usize,
     #[serde(default)]
-    pub equipped: Vec<(String, usize)>,
+    pub equipped: EquippedBuilder,
 
     #[serde(default)]
     pub spawner: Option<Spawner>,

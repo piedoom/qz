@@ -7,13 +7,9 @@
     drops: [],
     inventory: [],
     inventory_space: 1000,
-    equipped: [
-        ("dart.weapon", 1),
-        ("solar_array.generator", 1),
-    ],
     spawner: (
         maximum: 4,
         tick: 3.0,
-        spawns: [("pest", 2)],
+        spawns: [("pest", 2), ("pebble", 4)],
     ),
 )

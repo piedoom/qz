@@ -1,18 +1,21 @@
 use bevy::{
-    ecs::component::{ComponentHooks, StorageType},
+    ecs::{
+        component::{ComponentHooks, StorageType},
+        world::DeferredWorld,
+    },
     prelude::*,
 };
 use serde::{Deserialize, Serialize};
 
 use crate::prelude::*;
 
-#[derive(Clone, Debug, Component, Reflect, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Component, Reflect, Serialize, Deserialize, PartialEq)]
 pub struct RepairBot {
     /// Repair rate / s
     pub rate: f32,
 }
 
-#[derive(Clone, Debug, Reflect, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Reflect, Serialize, Deserialize, PartialEq)]
 pub struct Armor {
     /// Armor amount
     pub health: usize,
@@ -21,26 +24,26 @@ pub struct Armor {
 impl Component for Armor {
     const STORAGE_TYPE: bevy::ecs::component::StorageType = StorageType::Table;
     fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks
-            .on_add(|mut world, entity, _component_id| {
-                if let (Some(parent), Some(armor)) =
-                    (world.get::<Parent>(entity), world.get::<Self>(entity))
-                {
-                    let armor_health = armor.health;
-                    if let Some(mut health) = world.get_mut::<Health>(parent.get()) {
+        fn modify_health(world: &mut DeferredWorld, entity: Entity, add: bool) {
+            if let (Some(parent), Some(armor)) =
+                (world.get::<Parent>(entity), world.get::<Armor>(entity))
+            {
+                let armor_health = armor.health;
+                if let Some(mut health) = world.get_mut::<Health>(parent.get()) {
+                    if add {
                         health.0 += armor_health
-                    }
-                }
-            })
-            .on_remove(|mut world, entity, _component_id| {
-                if let (Some(parent), Some(armor)) =
-                    (world.get::<Parent>(entity), world.get::<Self>(entity))
-                {
-                    let armor_health = armor.health;
-                    if let Some(mut health) = world.get_mut::<Health>(parent.get()) {
+                    } else {
                         health.0 -= armor_health
                     }
                 }
+            }
+        }
+        hooks
+            .on_add(|mut world, entity, _component_id| {
+                modify_health(&mut world, entity, true);
+            })
+            .on_remove(|mut world, entity, _component_id| {
+                modify_health(&mut world, entity, false);
             });
     }
 }

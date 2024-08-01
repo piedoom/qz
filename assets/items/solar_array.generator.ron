@@ -1,7 +1,7 @@
 (
     name: "solar array",
     value: 800,
-    mass: 380.0,
+    mass: 16.0,
     size: 19,
     equipment: Some(
         Generator(

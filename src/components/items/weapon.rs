@@ -3,7 +3,7 @@ use std::time::Duration;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Component, Reflect, Serialize, Deserialize)]
+#[derive(Debug, Clone, Reflect, Component, Serialize, Deserialize, PartialEq)]
 pub struct Weapon {
     #[serde(skip)]
     pub wants_to_fire: bool,
@@ -14,7 +14,7 @@ pub struct Weapon {
     pub weapon_type: WeaponType,
 }
 
-#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize, PartialEq)]
 pub enum WeaponType {
     ProjectileWeapon {
         /// Allows the projectile to be fired at a direction other than straight ahead,

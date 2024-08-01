@@ -4,7 +4,7 @@ use avian3d::{math::TAU, prelude::*};
 use bevy::{prelude::*, utils::hashbrown::HashMap};
 use bevy_turborand::prelude::*;
 use big_brain::prelude::*;
-use events::{EquipEvent, WorldEvent};
+use events::WorldEvent;
 use leafwing_input_manager::prelude::*;
 use rand::seq::SliceRandom;
 use rand::Rng;
@@ -30,7 +30,7 @@ impl Plugin for WorldPlugin {
             .register_type::<components::Docked>()
             .register_type::<components::Dockings>()
             .register_type::<components::Generator>()
-            .register_type::<components::Equipment>()
+            .register_type::<components::Equipped>()
             .register_type::<components::EquipmentType>()
             .register_type::<components::Faction>()
             .register_type::<components::Gate>()
@@ -65,6 +65,7 @@ impl Plugin for WorldPlugin {
                     manage_gates,
                     setup_health,
                     spawn_new_slices,
+                    cleanup_empty_chests,
                 )
                     .run_if(in_state(AppState::main())),
             );
@@ -75,7 +76,7 @@ fn setup(
     mut cmd: Commands,
     mut factions: ResMut<Factions>,
     library: Res<Library>,
-    items: Res<Assets<Item>>,
+    crafts: Res<Assets<Craft>>,
 ) {
     let player_faction = factions.register("player");
     let enemy_faction = factions.register("enemy");
@@ -98,23 +99,29 @@ fn setup(
             range: 5f32,
         },
         CraftBundle {
+            craft: crafts.get(&library.craft("pest").unwrap()).unwrap().clone(),
             alliegance: player_alliegance.clone(),
             inventory: Inventory::default(),
-            equipment: Equipment {
-                inventory: Inventory::with_capacity(55)
-                    .with_many_from_str(
-                        [
-                            ("minireactor.generator".to_string(), 1),
-                            ("light_laser.weapon".to_string(), 1),
-                            ("autoweld.repair".to_string(), 1),
-                            ("ion.battery".to_string(), 2),
-                            ("iron.armor".to_string(), 2),
-                        ]
-                        .into(),
-                        &items,
-                        &library,
-                    )
-                    .unwrap(),
+            equipped: EquippedBuilder {
+                equipped: [
+                    "minireactor.generator",
+                    "dart_2.weapon",
+                    "autoweld.repair",
+                    "ion.battery",
+                    "ion.battery",
+                    "iron.armor",
+                    "iron.armor",
+                ]
+                .map(ToString::to_string)
+                .into(),
+                slots: [
+                    (EquipmentTypeId::Weapon, 1),
+                    (EquipmentTypeId::RepairBot, 1),
+                    (EquipmentTypeId::Generator, 1),
+                    (EquipmentTypeId::Battery, 3),
+                    (EquipmentTypeId::Armor, 3),
+                ]
+                .into(),
             },
             ..default()
         },
@@ -138,17 +145,11 @@ fn setup(
 }
 
 fn manage_slice_transforms(
-    mut slices: Query<
-        (&mut Transform, &Slice, Option<&mut Position>),
-        Or<(Added<Transform>, Changed<Slice>)>,
-    >,
+    mut slices: Query<(&mut Transform, &Slice), Or<(Added<Transform>, Changed<Slice>)>>,
 ) {
-    for (mut transform, slice, maybe_position) in slices.iter_mut() {
+    for (mut transform, slice) in slices.iter_mut() {
         let z = **slice as f32 * -DISTANCE_BETWEEN_SLICES;
         transform.translation.z = z;
-        if let Some(mut position) = maybe_position {
-            position.z = z;
-        }
     }
 }
 
@@ -282,17 +283,8 @@ fn manage_world_events(
                                 &library,
                             )
                             .unwrap(),
-                        // TODO: figure out interplay between two capacities
-                        equipment: Equipment {
-                            inventory: Inventory::with_capacity(craft.capacity)
-                                .with_many_from_str(
-                                    equipped.into_iter().collect(),
-                                    &items,
-                                    &library,
-                                )
-                                .unwrap(),
-                        },
                         slice: *slice,
+                        equipped,
                         ..default()
                     },
                     Npc,
@@ -431,12 +423,6 @@ fn manage_world_events(
                     .ok_or_else(|| WorldEventError::AssetNotFound(name.to_string()))?
                     .clone();
 
-                let equipment = Equipment {
-                    inventory: Inventory::with_capacity(inventory_space)
-                        .with_many_from_str(equipped.into_iter().collect(), &items, &library)
-                        .unwrap(),
-                };
-
                 let mut entity = cmd.spawn((
                     Name::new(name.clone()),
                     Structure,
@@ -450,7 +436,7 @@ fn manage_world_events(
                     Inventory::with_capacity(inventory_space)
                         .with_many_from_str(inventory.into_iter().collect(), &items, &library)
                         .unwrap(),
-                    equipment.clone(),
+                    equipped,
                     Drops(
                         drops
                             .into_iter()
@@ -467,8 +453,6 @@ fn manage_world_events(
                     LockedAxes::ROTATION_LOCKED,
                     Transform::z_from_parts(translation, rotation, slice),
                 ));
-
-                // TODO: Add items to equipment
 
                 if let Some(spawner) = spawner {
                     entity.insert((spawner,));
@@ -545,4 +529,15 @@ fn spawn_new_slices(
     // }
 
     // ***cursor = furthest_player + slices_in_advance;
+}
+
+fn cleanup_empty_chests(
+    mut cmd: Commands,
+    changed_chests: Query<(Entity, &Inventory), (With<Chest>, Changed<Inventory>)>,
+) {
+    for (entity, inventory) in changed_chests.iter() {
+        if inventory.is_empty() {
+            cmd.entity(entity).despawn();
+        }
+    }
 }

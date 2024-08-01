@@ -1,7 +1,7 @@
 (
     name: "shotgun",
     value: 80,
-    mass: 200.0,
+    mass: 3.0,
     size: 16,
     equipment: Some(
         Weapon(

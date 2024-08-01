@@ -1,0 +1,12 @@
+(
+    name: "pebble",
+    value: 4900,
+    speed: 4.0,
+    rotation: 80.0,
+    brake: 120.0,
+    acceleration: 200.0,
+    health: 24,
+    size: 1.4,
+    mass: 12.0,
+    capacity: 75,
+)

@@ -1,5 +1,7 @@
 use crate::prelude::*;
-use avian3d::prelude::{AngularVelocity, LinearDamping, LinearVelocity};
+use avian3d::prelude::{
+    AngularVelocity, ExternalAngularImpulse, ExternalImpulse, LinearDamping, LinearVelocity,
+};
 use bevy::prelude::*;
 
 pub struct ControllersPlugin;
@@ -23,7 +25,7 @@ fn apply_controller_movement(
             &Transform,
             &Craft,
             &mut Controller,
-            &mut LinearVelocity,
+            &mut ExternalImpulse,
             &mut AngularVelocity,
             &mut LinearDamping,
         ),
@@ -44,14 +46,19 @@ fn apply_controller_movement(
 
 /// Apply limitations of a particular craft
 fn apply_craft_physics(
-    mut crafts: Query<(&mut LinearVelocity, &mut AngularVelocity, &Craft), Without<Destroyed>>,
+    mut crafts: Query<
+        (&mut LinearVelocity, &mut ExternalAngularImpulse, &Craft),
+        Without<Destroyed>,
+    >,
+    time: Res<Time>,
 ) {
     crafts
         .iter_mut()
         .for_each(|(mut velocity, mut angular_velocity, craft)| {
             // Clamp to max speed
-            velocity.0 = velocity.0.clamp_length_max(craft.speed);
+            **velocity = velocity.clamp_length_max(craft.speed);
             // Clamp to max rotation
-            angular_velocity.0 = angular_velocity.0.clamp_length_max(craft.rotation);
+            **angular_velocity =
+                angular_velocity.clamp_length_max(craft.rotation * time.delta_seconds());
         });
 }

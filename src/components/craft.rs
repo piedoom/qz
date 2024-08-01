@@ -73,7 +73,7 @@ pub struct CraftBundle {
     pub global_transform: GlobalTransform,
     pub alliegance: Alliegance,
     pub inventory: Inventory,
-    pub equipment: Equipment,
+    pub equipped: EquippedBuilder,
     pub collision_layers: CollisionLayers,
     pub slice: Slice,
     pub credits: Credits,
@@ -106,7 +106,7 @@ impl Default for CraftBundle {
             alliegance: Alliegance::default(),
             inventory: Inventory::default(),
             linear_damping: LinearDamping::default(),
-            equipment: Equipment::default(),
+            equipped: EquippedBuilder::default(),
             collision_layers: CollisionLayers {
                 memberships: LayerMask::from([PhysicsCategory::Craft]),
                 filters: LayerMask::from([PhysicsCategory::Craft, PhysicsCategory::Weapon]),

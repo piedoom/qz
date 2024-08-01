@@ -1,7 +1,7 @@
 (
     name: "light laser",
     value: 1200,
-    mass: 120.0,
+    mass: 10.0,
     size: 13,
     equipment: Some(
         Weapon(

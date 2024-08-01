@@ -10,10 +10,10 @@
         ("autoweld_2.repair", 999),
     ],
     inventory_space: 99999999999,
-    equipped: [
-        ("dart.weapon", 1),
-        ("solar_array.generator", 1),
-    ],
+    equipped: (
+        equipped: ["dart.weapon", "minireactor.generator", "ion.battery"],
+        slots: [(Weapon, 1), (Generator, 1), (Battery, 1)],
+    ),
     store: [
         ("scrap_metal.item", (sell: Scaled(1.0), buy: Scaled(0.7))),
         ("autoweld_2.repair", (sell: Scaled(1.0), buy: Scaled(0.5))),

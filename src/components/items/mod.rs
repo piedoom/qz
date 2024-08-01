@@ -1,18 +1,19 @@
 mod credits;
 mod drop;
 mod energy;
+mod equipment;
 mod inventory;
 mod repair;
 mod weapon;
 
-pub use {credits::*, drop::*, energy::*, inventory::*, repair::*, weapon::*};
+pub use {credits::*, drop::*, energy::*, equipment::*, inventory::*, repair::*, weapon::*};
 
 use {
     bevy::prelude::*,
     serde::{Deserialize, Serialize},
 };
 
-#[derive(Debug, Clone, Component, Reflect, Asset, Serialize, Deserialize)]
+#[derive(Debug, Component, Clone, Reflect, Asset, Serialize, Deserialize)]
 pub struct Item {
     pub name: String,
     pub mass: f32,
@@ -31,15 +32,6 @@ pub struct Chest;
 pub struct ChestsInRange {
     pub chests: Vec<Entity>,
     pub range: f32,
-}
-
-#[derive(Debug, Reflect, Clone, Serialize, Deserialize)]
-pub enum EquipmentType {
-    Weapon(Weapon),
-    RepairBot(RepairBot),
-    Generator(Generator),
-    Battery(Battery),
-    Armor(Armor),
 }
 
 impl Item {
