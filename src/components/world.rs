@@ -3,12 +3,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::prelude::DISTANCE_BETWEEN_SLICES;
 
-#[derive(Component, Reflect, Deref, DerefMut, Clone)]
-pub struct Gate(pub Slice);
+/// References a compliment gate, or none if uninitialized
+#[derive(Component, Default, Reflect, Deref, DerefMut, Clone)]
+pub struct Gate(pub Option<Entity>);
 
 impl Gate {
-    pub fn new(target_slice: impl Into<Slice>) -> Self {
-        Self(target_slice.into())
+    pub fn new(end_gate: Option<Entity>) -> Self {
+        Self(end_gate)
     }
 }
 

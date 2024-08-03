@@ -3,6 +3,7 @@ mod assets;
 pub mod events;
 mod factions;
 pub mod settings;
+pub mod trigger;
 mod util;
 mod world;
 

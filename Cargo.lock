@@ -1136,6 +1136,7 @@ dependencies = [
  "bitflags 2.6.0",
  "egui-toast",
  "leafwing-input-manager",
+ "petgraph",
  "rand",
  "serde",
  "thiserror",

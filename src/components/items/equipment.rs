@@ -35,8 +35,7 @@ impl Equipped {
     pub fn mass(&self, item_assets: &Assets<Item>, items: &Query<&Equipment>) -> f32 {
         self.equipped
             .iter()
-            .map(|(_, e)| e.iter())
-            .flatten()
+            .flat_map(|(_, e)| e.iter())
             .fold(0f32, |acc, x| {
                 acc + item_assets
                     .get(&items.get(*x).unwrap().handle())

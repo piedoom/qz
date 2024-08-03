@@ -6,28 +6,18 @@ pub struct StatePlugin;
 
 impl Plugin for StatePlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<StateEvent>()
-            .add_systems(Update, (manage_events, manage_loss_state));
+        app.add_systems(Update, manage_loss_state)
+            .observe(on_save)
+            .observe(on_load);
     }
 }
 
-fn manage_events(mut events: EventReader<StateEvent>) {
-    for event in events.read() {
-        match event {
-            StateEvent::Save => {
-                //
-            }
-            StateEvent::Load => {
-                //
-            }
-        }
-    }
+fn on_save(trigger: Trigger<trigger::Save>) {
+    todo!()
 }
 
-#[derive(Event)]
-pub enum StateEvent {
-    Save,
-    Load,
+fn on_load(trigger: Trigger<trigger::Load>) {
+    todo!()
 }
 
 // If all players are destroyed, players will be sent to the first slice (0)

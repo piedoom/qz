@@ -184,17 +184,11 @@ fn draw_active_chests(
 
 fn draw_gates(mut gizmos: Gizmos, gates: Query<(&Gate, &Slice, &Transform, &Collider)>) {
     const COLOR: Color = Color::srgb(0.7, 0.2, 1.0);
-    for (gate, slice, transform, collider) in gates.iter() {
+    for (_, _, transform, collider) in gates.iter() {
         gizmos.sphere(
             transform.translation,
             default(),
             collider.shape().as_ball().unwrap().radius,
-            COLOR,
-        );
-        let layer_difference = ***gate as f32 - **slice as f32;
-        gizmos.arrow(
-            transform.translation,
-            transform.translation + (Vec3::Z * (Slice(1).z() * layer_difference)),
             COLOR,
         );
     }

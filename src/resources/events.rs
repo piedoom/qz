@@ -47,34 +47,6 @@ pub enum InventoryEvent {
 }
 
 #[derive(Event)]
-pub enum WorldEvent {
-    SpawnCreature {
-        name: String,
-        slice: Slice,
-        translation: Vec2,
-        rotation: f32,
-
-        alliegance: Alliegance,
-        from: Option<Entity>,
-    },
-    SpawnBuilding {
-        name: String,
-        slice: Slice,
-        translation: Vec2,
-        rotation: f32,
-
-        alliegance: Alliegance,
-    },
-    SpawnSlice(Slice),
-    SpawnGate {
-        from: Slice,
-        to: Slice,
-        translation: Vec2,
-        radius: f32,
-    },
-}
-
-#[derive(Event)]
 pub enum StoreEvent {
     Buy {
         buyer: Entity,
@@ -92,4 +64,18 @@ pub enum StoreEvent {
         /// Price per unit
         price: usize,
     },
+}
+
+pub mod triggers {
+    use super::*;
+
+    #[derive(Event)]
+    pub struct SpawnCreature {
+        pub name: String,
+        pub slice: Slice,
+        pub translation: Vec2,
+        pub rotation: f32,
+        pub alliegance: Alliegance,
+        pub spawner: Option<Entity>,
+    }
 }

@@ -4,10 +4,10 @@ use avian3d::{math::TAU, prelude::*};
 use bevy::{prelude::*, utils::hashbrown::HashMap};
 use bevy_turborand::prelude::*;
 use big_brain::prelude::*;
-use events::WorldEvent;
 use leafwing_input_manager::prelude::*;
 use rand::seq::SliceRandom;
 use rand::Rng;
+use trigger::SpawnCreature;
 
 use crate::prelude::*;
 
@@ -50,34 +50,40 @@ impl Plugin for WorldPlugin {
             .register_type::<components::Structure>()
             .register_type::<components::Weapon>()
             .register_type::<components::WeaponType>()
-            .add_event::<WorldEvent>()
             .insert_resource(ClearColor(Color::BLACK))
             .insert_resource(AmbientLight::NONE)
             .init_resource::<WorldCursor>()
             .init_resource::<DepthCursor>()
+            .init_resource::<Universe>()
             .add_systems(OnEnter(AppState::main()), setup)
             .add_systems(
                 Update,
                 (
                     manage_spawners,
-                    manage_world_events.pipe(handle_errors::<WorldEventError>),
                     manage_slice_transforms.after(manage_gates),
                     manage_gates,
                     setup_health,
-                    spawn_new_slices,
                     cleanup_empty_chests,
                 )
                     .run_if(in_state(AppState::main())),
-            );
+            )
+            .observe(on_spawn_creature)
+            .observe(on_spawn_gate)
+            .observe(on_spawn_building)
+            .observe(on_spawn_slice);
     }
 }
 
 fn setup(
     mut cmd: Commands,
     mut factions: ResMut<Factions>,
+    mut universe: ResMut<Universe>,
     library: Res<Library>,
     crafts: Res<Assets<Craft>>,
 ) {
+    let slice = cmd.spawn((Slice(0), Transform::default())).id();
+    universe.add_node(slice);
+
     let player_faction = factions.register("player");
     let enemy_faction = factions.register("enemy");
     let player_alliegance = Alliegance {
@@ -142,6 +148,314 @@ fn setup(
             ..default()
         },
     ));
+
+    cmd.trigger(trigger::SpawnSlice {
+        slice: Slice(0),
+        from_gate: None,
+    });
+}
+
+fn on_spawn_creature(
+    trigger: Trigger<trigger::SpawnCreature>,
+
+    mut cmd: Commands,
+    library: Res<Library>,
+    creatures: Res<Assets<Creature>>,
+    crafts: Res<Assets<Craft>>,
+    items: Res<Assets<Item>>,
+) {
+    let SpawnCreature {
+        name,
+        slice,
+        translation,
+        rotation,
+        alliegance,
+        spawner,
+    } = trigger.event();
+    let creature = library.creature(name).unwrap();
+    let Creature {
+        name,
+        craft,
+        drops,
+        inventory,
+        equipped,
+        range,
+    } = creatures.get(&creature).cloned().unwrap();
+    let craft = library
+        .crafts
+        .get(&format!("crafts/{}.craft.ron", craft))
+        .and_then(|craft| crafts.get(craft))
+        .unwrap();
+    let drops = drops
+        .into_iter()
+        .filter_map(|(drop_name, drop_rate)| {
+            library
+                .items
+                .get(&format!("items/{}.ron", drop_name))
+                .map(|item| (item.clone(), drop_rate))
+        })
+        .collect();
+    let mut ent = cmd.spawn((
+        CraftBundle {
+            collider: Collider::sphere(craft.size * 0.5),
+            mass: Mass(craft.mass),
+            craft: craft.clone(),
+            transform: Transform::z_from_parts(translation, rotation, slice),
+            alliegance: alliegance.clone(),
+            inventory: Inventory::with_capacity(craft.capacity)
+                .with_many_from_str(
+                    inventory.into_iter().collect::<HashMap<String, usize>>(),
+                    &items,
+                    &library,
+                )
+                .unwrap(),
+            slice: *slice,
+            equipped,
+            ..default()
+        },
+        Npc,
+        Drops(drops),
+        InRange::new(range),
+        Name::new(name),
+    ));
+    if let Some(spawner) = spawner {
+        ent.insert((SpawnedFrom(*spawner),));
+    }
+    ent.insert(
+        Thinker::build()
+            .picker(FirstToScore { threshold: 0.8 })
+            .when(
+                scorers::Facing,
+                Concurrently::build()
+                    .push(actions::Attack)
+                    .push(actions::Persue),
+            )
+            .when(
+                EvaluatingScorer::build(scorers::Facing, LinearEvaluator::new_inversed()),
+                actions::Persue,
+            ),
+        // .when(
+        //     scorers::Danger {
+        //         radius: 3f32..=15f32,
+        //     },
+        //     actions::Retreat,
+        // ),
+    );
+}
+
+fn on_spawn_gate(trigger: Trigger<trigger::SpawnGate>, mut cmd: Commands) {
+    const GATE_RADIUS: f32 = 2.0f32;
+    let trigger::SpawnGate {
+        use_entity,
+        slice,
+        translation,
+        end_gate,
+    } = trigger.event();
+    let entity = use_entity.unwrap_or_else(|| cmd.spawn(()).id());
+
+    cmd.entity(entity).insert((
+        Structure,
+        Sensor,
+        Collider::sphere(GATE_RADIUS),
+        CollisionLayers {
+            memberships: LayerMask::ALL,
+            filters: LayerMask::ALL,
+        },
+        *slice,
+        Gate::new(*end_gate),
+        Transform::z_from_parts(translation, &0f32, slice),
+    ));
+}
+
+fn on_spawn_building(
+    trigger: Trigger<trigger::SpawnBuilding>,
+
+    mut cmd: Commands,
+    library: Res<Library>,
+    buildings: Res<Assets<Building>>,
+    items: Res<Assets<Item>>,
+) {
+    let trigger::SpawnBuilding {
+        name,
+        slice,
+        translation,
+        rotation,
+        alliegance,
+    } = trigger.event();
+    let Building {
+        name,
+        mass,
+        health,
+        size,
+        drops,
+        inventory,
+        inventory_space,
+        equipped,
+        spawner,
+        store,
+        credits,
+    } = library
+        .building(name)
+        .and_then(|building| buildings.get(building.id()))
+        .unwrap()
+        .clone();
+
+    let mut entity = cmd.spawn((
+        Name::new(name.clone()),
+        Structure,
+        *slice,
+        Health::from(health),
+        Damage::default(),
+        RigidBody::Dynamic,
+        Mass(mass),
+        Collider::sphere(size * 0.5),
+        alliegance.clone(),
+        Inventory::with_capacity(inventory_space)
+            .with_many_from_str(inventory.into_iter().collect(), &items, &library)
+            .unwrap(),
+        equipped,
+        Drops(
+            drops
+                .into_iter()
+                .filter_map(|(drop, rate)| library.item(drop).map(|x| (x, rate)))
+                .collect(),
+        ),
+        CollisionLayers {
+            memberships: LayerMask::from([PhysicsCategory::Structure]),
+            filters: LayerMask::from([PhysicsCategory::Weapon, PhysicsCategory::Structure]),
+        },
+        LockedAxes::ROTATION_LOCKED,
+        Transform::z_from_parts(translation, rotation, slice),
+    ));
+
+    if let Some(spawner) = spawner {
+        entity.insert((spawner,));
+    }
+
+    if let Some(credits) = credits {
+        entity.insert(Credits::new(credits));
+    }
+
+    if let Some(store) = store {
+        entity.insert((
+            Store {
+                items: store
+                    .into_iter()
+                    .map(|(n, o)| (library.item(n).unwrap(), o))
+                    .collect(),
+            },
+            Dockings::default(),
+        ));
+    }
+}
+
+fn on_spawn_slice(
+    trigger: Trigger<trigger::SpawnSlice>,
+    mut cmd: Commands,
+    mut rng: ResMut<GlobalRng>,
+    mut gates: Query<&mut Gate>,
+    transforms: Query<&Transform>,
+    factions: Res<Factions>,
+) {
+    let trigger::SpawnSlice { slice, from_gate } = trigger.event();
+    // Show a background grid
+    cmd.spawn((
+        Grid,
+        *slice,
+        Transform::z_from_parts(&Vec2::ZERO, &0f32, slice),
+    ));
+
+    let player_faction = *factions.get_faction("player").unwrap();
+    let enemy_faction = *factions.get_faction("enemy").unwrap();
+
+    // Rotate in a random direction and cast outwards
+    let rand_point = |rng: &mut GlobalRng| -> Vec2 {
+        let mut t = Transform::default_z();
+        t.rotate_z(rng.f32() * TAU);
+        let point = t.forward() * SEPARATION_SCALAR;
+        point.truncate()
+    };
+
+    if **slice == 0 {
+        // always spawn a store on layer 0
+        cmd.trigger(trigger::SpawnBuilding {
+            name: "store".to_string(),
+            slice: *slice,
+            translation: rand_point(&mut rng),
+            rotation: 0f32,
+            alliegance: Alliegance {
+                faction: Faction::none(),
+                allies: FactionSet::all(),
+                enemies: [enemy_faction].into(),
+            },
+        });
+    } else {
+        let home_gate_chance = rng.chance(1f64 / 8f64);
+        if home_gate_chance {
+            cmd.trigger(trigger::SpawnGate {
+                use_entity: None,
+                slice: *slice,
+                translation: rand_point(&mut rng),
+                end_gate: None,
+            });
+        }
+    }
+
+    // If a from gate is set, solve loose ends
+    if let Some(from_gate_entity) = from_gate {
+        let from_gate_transform = transforms.get(*from_gate_entity).unwrap();
+
+        // Entity will be created in next layer
+        let return_gate_entity = cmd.spawn(()).id();
+
+        // Spawn the gate back
+        cmd.trigger(trigger::SpawnGate {
+            slice: *slice,
+            translation: from_gate_transform.translation.truncate(),
+            end_gate: Some(*from_gate_entity),
+            use_entity: Some(return_gate_entity),
+        });
+
+        // Set the gate to the new spawned layer
+        let mut from_gate = gates.get_mut(*from_gate_entity).unwrap();
+        from_gate.0 = Some(return_gate_entity);
+    }
+
+    // TODO: Graph stuff and ending gates
+
+    const SEPARATION_SCALAR: f32 = 24.0;
+    let store_chance = rng.chance(1f64 / 3f64);
+
+    cmd.trigger(trigger::SpawnGate {
+        slice: *slice,
+        translation: rand_point(&mut rng),
+        end_gate: None,
+        use_entity: None,
+    });
+
+    cmd.trigger(trigger::SpawnBuilding {
+        name: "store".to_string(),
+        slice: *slice,
+        translation: rand_point(&mut rng),
+        rotation: 0f32,
+        alliegance: Alliegance {
+            faction: Faction::none(),
+            allies: FactionSet::all(),
+            enemies: [enemy_faction].into(),
+        },
+    });
+
+    cmd.trigger(trigger::SpawnBuilding {
+        name: "nest".into(),
+        translation: rand_point(&mut rng), // TODO
+        rotation: 0f32,
+        slice: *slice,
+        alliegance: Alliegance {
+            faction: enemy_faction,
+            allies: [enemy_faction].into(),
+            enemies: [player_faction].into(),
+        },
+    });
 }
 
 fn manage_slice_transforms(
@@ -154,7 +468,7 @@ fn manage_slice_transforms(
 }
 
 fn manage_spawners(
-    mut events: EventWriter<WorldEvent>,
+    mut cmd: Commands,
     mut spawners: Query<(Entity, &mut Spawner, &Transform, &Slice), Without<Destroyed>>,
     factions: Res<Factions>,
     spawned_from: Query<&SpawnedFrom, Without<Destroyed>>,
@@ -175,7 +489,7 @@ fn manage_spawners(
             for (spawn, d) in spawns.into_iter() {
                 if rng.gen_ratio(1, d as u32) {
                     // Spawn thing
-                    events.send(WorldEvent::SpawnCreature {
+                    cmd.trigger(SpawnCreature {
                         name: spawn.clone(),
                         slice: *slice,
                         translation: transform.translation.truncate(),
@@ -185,8 +499,9 @@ fn manage_spawners(
                             allies: [enemy_faction].into(),
                             enemies: [player_faction].into(),
                         },
-                        from: Some(entity),
+                        spawner: Some(entity),
                     });
+
                     break;
                 }
             }
@@ -197,11 +512,36 @@ fn manage_spawners(
 }
 
 /// If anything with a collider comes in contact with the gate, it will change slices
-fn manage_gates(gates: Query<(&Gate, &CollidingEntities)>, mut objects: Query<&mut Slice>) {
-    for (gate, collisions) in gates.iter() {
-        for collision in collisions.iter() {
-            if let Ok(mut slice) = objects.get_mut(*collision) {
-                **slice = ***gate;
+fn manage_gates(
+    mut cmd: Commands,
+    mut slices: Query<&mut Slice>,
+    mut cursor: Local<usize>,
+    keyboard: Res<ButtonInput<KeyCode>>,
+    gates: Query<(Entity, &Gate, &CollidingEntities)>,
+) {
+    for (gate_entity, gate, collisions) in gates.iter() {
+        if keyboard.just_pressed(KeyCode::KeyF) {
+            for collision in collisions.iter() {
+                match gate.0 {
+                    Some(pair_gate) => {
+                        if let Ok(pair_slice) = slices.get(pair_gate).cloned() {
+                            if let Ok(mut slice) = slices.get_mut(*collision) {
+                                **slice = *pair_slice
+                            }
+                        }
+                    }
+                    None => {
+                        // We already spawned the first layer, so increase first
+                        *cursor += 1;
+                        cmd.trigger(trigger::SpawnSlice {
+                            from_gate: Some(gate_entity),
+                            slice: Slice(*cursor),
+                        });
+                        if let Ok(mut slice) = slices.get_mut(*collision) {
+                            **slice += 1;
+                        }
+                    }
+                }
             }
         }
     }
@@ -214,321 +554,6 @@ fn setup_health(mut cmd: Commands, crafts: Query<(Entity, &Craft), Added<Craft>>
         cmd.entity(entity)
             .insert((Health(craft.health), Damage::default()));
     }
-}
-
-fn manage_world_events(
-    mut cmd: Commands,
-    mut events: ParamSet<(EventReader<WorldEvent>, EventWriter<WorldEvent>)>,
-    mut rng: ResMut<GlobalRng>,
-    // mut equip_events: EventWriter<EquipEvent>,
-    library: Res<Library>,
-    creatures: Res<Assets<Creature>>,
-    buildings: Res<Assets<Building>>,
-    crafts: Res<Assets<Craft>>,
-    items: Res<Assets<Item>>,
-    factions: Res<Factions>,
-) -> Result<(), WorldEventError> {
-    let mut new_events: Vec<WorldEvent> = Default::default();
-
-    for event in events.p0().read() {
-        match event {
-            WorldEvent::SpawnCreature {
-                name,
-                slice,
-                translation,
-                rotation,
-                alliegance,
-                from,
-            } => {
-                let creature = library
-                    .creatures
-                    .get(&format!("creatures/{}.creature.ron", name))
-                    .ok_or_else(|| WorldEventError::AssetNotFound(name.to_string()))?;
-                let Creature {
-                    name,
-                    craft,
-                    drops,
-                    inventory,
-                    equipped,
-                    range,
-                } = creatures
-                    .get(creature)
-                    .cloned()
-                    .ok_or_else(|| WorldEventError::AssetNotFound(name.to_string()))?;
-                let craft = library
-                    .crafts
-                    .get(&format!("crafts/{}.craft.ron", craft))
-                    .and_then(|craft| crafts.get(craft))
-                    .ok_or_else(|| WorldEventError::AssetNotFound(name.to_string()))?;
-                let drops = drops
-                    .into_iter()
-                    .filter_map(|(drop_name, drop_rate)| {
-                        library
-                            .items
-                            .get(&format!("items/{}.ron", drop_name))
-                            .map(|item| (item.clone(), drop_rate))
-                    })
-                    .collect();
-                let mut ent = cmd.spawn((
-                    CraftBundle {
-                        collider: Collider::sphere(craft.size * 0.5),
-                        mass: Mass(craft.mass),
-                        craft: craft.clone(),
-                        transform: Transform::z_from_parts(translation, rotation, slice),
-                        alliegance: alliegance.clone(),
-                        inventory: Inventory::with_capacity(craft.capacity)
-                            .with_many_from_str(
-                                inventory.into_iter().collect::<HashMap<String, usize>>(),
-                                &items,
-                                &library,
-                            )
-                            .unwrap(),
-                        slice: *slice,
-                        equipped,
-                        ..default()
-                    },
-                    Npc,
-                    Drops(drops),
-                    InRange::new(range),
-                ));
-                if let Some(from) = from {
-                    ent.insert((SpawnedFrom(*from),));
-                }
-                ent.insert(
-                    Thinker::build()
-                        .picker(FirstToScore { threshold: 0.8 })
-                        .when(
-                            scorers::Facing,
-                            Concurrently::build()
-                                .push(actions::Attack)
-                                .push(actions::Persue),
-                        )
-                        .when(
-                            EvaluatingScorer::build(
-                                scorers::Facing,
-                                LinearEvaluator::new_inversed(),
-                            ),
-                            actions::Persue,
-                        ),
-                    // .when(
-                    //     scorers::Danger {
-                    //         radius: 3f32..=15f32,
-                    //     },
-                    //     actions::Retreat,
-                    // ),
-                );
-            }
-            WorldEvent::SpawnSlice(slice) => {
-                // Show a background grid
-                cmd.spawn((
-                    Grid,
-                    *slice,
-                    Transform::z_from_parts(&Vec2::ZERO, &0f32, slice),
-                ));
-
-                let player_faction = *factions.get_faction("player").unwrap();
-                let enemy_faction = *factions.get_faction("enemy").unwrap();
-
-                // Rotate in a random direction and cast outwards
-                let rand_point = |rng: &mut GlobalRng| -> Vec2 {
-                    let mut t = Transform::default_z();
-                    t.rotate_z(rng.f32() * TAU);
-                    let point = t.forward() * SEPARATION_SCALAR;
-                    point.truncate()
-                };
-
-                if **slice == 0 {
-                    // always spawn a store on layer 0
-                    new_events.push(WorldEvent::SpawnBuilding {
-                        name: "store".to_string(),
-                        slice: *slice,
-                        translation: rand_point(&mut rng),
-                        rotation: 0f32,
-                        alliegance: Alliegance {
-                            faction: Faction::none(),
-                            allies: FactionSet::all(),
-                            enemies: [enemy_faction].into(),
-                        },
-                    })
-                } else {
-                    let home_gate_chance = rng.chance(1f64 / 8f64);
-                    if home_gate_chance {
-                        new_events.push(WorldEvent::SpawnGate {
-                            from: *slice,
-                            to: 0.into(),
-                            translation: rand_point(&mut rng),
-                            radius: 2.0,
-                        });
-                    }
-                }
-
-                const SEPARATION_SCALAR: f32 = 24.0;
-                let store_chance = rng.chance(1f64 / 3f64);
-
-                new_events.push(WorldEvent::SpawnGate {
-                    from: *slice,
-                    to: (**slice + 1).into(),
-                    translation: rand_point(&mut rng),
-                    radius: 2.0,
-                });
-
-                if store_chance {
-                    new_events.push(WorldEvent::SpawnBuilding {
-                        name: "store".to_string(),
-                        slice: *slice,
-                        translation: rand_point(&mut rng),
-                        rotation: 0f32,
-                        alliegance: Alliegance {
-                            faction: Faction::none(),
-                            allies: FactionSet::all(),
-                            enemies: [enemy_faction].into(),
-                        },
-                    })
-                }
-
-                new_events.push(WorldEvent::SpawnBuilding {
-                    name: "nest".into(),
-                    translation: rand_point(&mut rng), // TODO
-                    rotation: 0f32,
-                    slice: *slice,
-                    alliegance: Alliegance {
-                        faction: enemy_faction,
-                        allies: [enemy_faction].into(),
-                        enemies: [player_faction].into(),
-                    },
-                })
-            }
-            WorldEvent::SpawnBuilding {
-                name,
-                translation,
-                rotation,
-                slice,
-                alliegance,
-            } => {
-                let Building {
-                    name,
-                    mass,
-                    health,
-                    size,
-                    drops,
-                    inventory,
-                    inventory_space,
-                    equipped,
-                    spawner,
-                    store,
-                    credits,
-                } = library
-                    .building(name)
-                    .and_then(|building| buildings.get(building.id()))
-                    .ok_or_else(|| WorldEventError::AssetNotFound(name.to_string()))?
-                    .clone();
-
-                let mut entity = cmd.spawn((
-                    Name::new(name.clone()),
-                    Structure,
-                    *slice,
-                    Health::from(health),
-                    Damage::default(),
-                    RigidBody::Dynamic,
-                    Mass(mass),
-                    Collider::sphere(size * 0.5),
-                    alliegance.clone(),
-                    Inventory::with_capacity(inventory_space)
-                        .with_many_from_str(inventory.into_iter().collect(), &items, &library)
-                        .unwrap(),
-                    equipped,
-                    Drops(
-                        drops
-                            .into_iter()
-                            .filter_map(|(drop, rate)| library.item(drop).map(|x| (x, rate)))
-                            .collect(),
-                    ),
-                    CollisionLayers {
-                        memberships: LayerMask::from([PhysicsCategory::Structure]),
-                        filters: LayerMask::from([
-                            PhysicsCategory::Weapon,
-                            PhysicsCategory::Structure,
-                        ]),
-                    },
-                    LockedAxes::ROTATION_LOCKED,
-                    Transform::z_from_parts(translation, rotation, slice),
-                ));
-
-                if let Some(spawner) = spawner {
-                    entity.insert((spawner,));
-                }
-
-                if let Some(credits) = credits {
-                    entity.insert(Credits::new(credits));
-                }
-
-                if let Some(store) = store {
-                    entity.insert((
-                        Store {
-                            items: store
-                                .into_iter()
-                                .map(|(n, o)| (library.item(n).unwrap(), o))
-                                .collect(),
-                        },
-                        Dockings::default(),
-                    ));
-                }
-            }
-            WorldEvent::SpawnGate {
-                from,
-                to,
-                translation,
-                radius: size,
-            } => {
-                cmd.spawn((
-                    Structure,
-                    Sensor,
-                    Collider::sphere(*size),
-                    CollisionLayers {
-                        memberships: LayerMask::ALL,
-                        filters: LayerMask::ALL,
-                    },
-                    *from,
-                    Gate::new(*to),
-                    Transform::z_from_parts(translation, &0f32, from),
-                ));
-            }
-        }
-    }
-
-    // Send any events queued while running
-    let mut writer = events.p1();
-    for new_event in new_events.into_iter() {
-        writer.send(new_event);
-    }
-    // Success!
-    Ok(())
-}
-
-/// Keeps track of the furthest player and spawns a slice in advance.
-fn spawn_new_slices(
-    mut events: EventWriter<WorldEvent>,
-    mut cursor: ResMut<WorldCursor>,
-    mut depth: ResMut<DepthCursor>,
-    players: Query<&Slice, With<Player>>,
-) {
-    **depth = players
-        .iter()
-        .fold(0, |acc, p| if p.0 > acc { p.0 } else { acc })
-        .into();
-
-    if ***depth >= ***cursor {
-        events.send(WorldEvent::SpawnSlice(**cursor));
-        ***cursor = ***depth + 1;
-    }
-
-    // let slices_in_advance = if ***cursor == 0 { 1 } else { 3 };
-
-    // for slice in ***cursor..furthest_player + slices_in_advance {
-    //     events.send(WorldEvent::SpawnSlice(slice.into()));
-    // }
-
-    // ***cursor = furthest_player + slices_in_advance;
 }
 
 fn cleanup_empty_chests(
