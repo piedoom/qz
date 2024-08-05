@@ -19,9 +19,7 @@ impl Plugin for StatePlugin {
 fn on_load(
     mut cmd: Commands,
     mut events: ParamSet<(EventReader<events::Load>, EventWriter<events::Load>)>,
-    mut transforms: Query<&mut Transform>,
-    player_entities: Query<Entity, With<Player>>,
-    gate_entities: Query<(Entity, &Gate)>,
+    mut player_transforms: Query<&mut Transform, With<Player>>,
     universe_position: Option<Res<UniversePosition>>,
     descriptions: Res<Assets<ZoneDescription>>,
     universe: Res<Universe>,
@@ -40,19 +38,14 @@ fn on_load(
                     }
                     for gate_trigger in gates {
                         cmd.trigger(gate_trigger.clone());
-                    }
-                    // Move the player to the newly spawned gate
-                    if let Some(from_node) = from_node {
-                        // Find the gate transform to copy
-                        let gate = gate_entities
-                            .iter()
-                            .find(|(_, g)| g.destination() == *from_node);
-                        if let Some((gate_entity, _)) = gate {
-                            for player_entity in player_entities.iter() {
-                                let gate_transform = *transforms.get(gate_entity).unwrap();
-                                let mut player_transform =
-                                    transforms.get_mut(player_entity).unwrap();
-                                *player_transform = gate_transform;
+
+                        // Move player transform to this if from_node is specified
+                        if let Some(from_node) = from_node {
+                            if &gate_trigger.destination == from_node {
+                                for mut player_transform in player_transforms.iter_mut() {
+                                    player_transform.translation =
+                                        gate_trigger.translation.extend(0f32);
+                                }
                             }
                         }
                     }
