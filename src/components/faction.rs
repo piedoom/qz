@@ -2,8 +2,9 @@
 
 use bevy::{prelude::*, utils::HashSet};
 use rand::RngCore;
+use serde::{Deserialize, Serialize};
 
-#[derive(Component, Clone, Reflect, Default)]
+#[derive(Component, Clone, Reflect, Default, Serialize, Deserialize)]
 pub struct Alliegance {
     /// The faction of the entity
     pub faction: Faction,
@@ -14,7 +15,7 @@ pub struct Alliegance {
 }
 
 /// A faction is a simple UID that can be registered
-#[derive(PartialEq, Eq, Copy, Clone, Reflect, Hash, Default)]
+#[derive(PartialEq, Eq, Copy, Clone, Reflect, Hash, Default, Serialize, Deserialize)]
 pub struct Faction(u32);
 
 impl Faction {
@@ -31,7 +32,7 @@ impl Faction {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Reflect, Default)]
+#[derive(PartialEq, Eq, Clone, Reflect, Default, Serialize, Deserialize)]
 pub struct FactionSet {
     data: HashSet<Faction>,
     /// Whether to treat this as including all potential factions. Overrides faction data.

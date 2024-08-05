@@ -73,6 +73,11 @@ fn manage_equipment(
                 item,
                 transfer_from_inventory,
             } => {
+                // Skip if the entity doesn't exist
+                if cmd.get_entity(*parent_entity).is_none() {
+                    continue;
+                }
+
                 // get the inventory and equipped components of the given entity
                 let equipped = equipped.get(*parent_entity)?;
 
@@ -100,6 +105,12 @@ fn manage_equipment(
                 equipment,
                 transfer_into_inventory,
             } => {
+                // Skip if the entity doesn't exist
+                if cmd.get_entity(*entity).is_none() {
+                    continue;
+                }
+
+                // Silently fails if equipment entity not found
                 if *transfer_into_inventory {
                     let eq = equipments.get(*equipment)?;
                     let retrieved_item = items
@@ -108,22 +119,24 @@ fn manage_equipment(
                     let mut inventory = inventories.get_mut(*entity)?;
                     inventory.add(eq.handle(), retrieved_item.size, 1)?;
                 }
-                cmd.entity(*equipment).despawn_recursive();
+                cmd.entity(*entity).despawn_recursive();
             }
         }
     }
     Ok(())
 }
 
+// TODO: This is panicking when transitioning zones too fast. If its despawned the tick
+// after creation, this will panic. We should handle transitions more gracefully with states
 fn manage_equipped_builders(
     mut cmd: Commands,
     library: Res<Library>,
     builders: Query<(Entity, &EquippedBuilder)>,
 ) {
     // Add necessary equipped and child entities
-    for (entity, builder) in builders.iter() {
+    for (parent_entity, builder) in builders.iter() {
         // Add empty equipped
-        cmd.entity(entity).insert((Equipped {
+        cmd.entity(parent_entity).try_insert((Equipped {
             equipped: [].into(),
             slots: builder.slots.iter().cloned().collect(),
         },));
@@ -133,20 +146,18 @@ fn manage_equipped_builders(
         // but we do assume the `EquippedBuilder` defines a valid
         // configuration
         for item in &builder.equipped {
-            // get the item from the string
-            let item_handle = library.item(item).clone().unwrap();
             // Spawn the equipment entity
             let equipment_entity = cmd.spawn(()).id();
+            // get the item from the string
+            let item_handle = library.item(item).clone().unwrap();
             // Manually set up parent/child relationship. If we use the child builder,
             // it won't work, see: https://github.com/bevyengine/bevy/issues/14545
-            cmd.entity(entity).add_child(equipment_entity);
-            cmd.entity(equipment_entity).set_parent(entity);
-
+            cmd.entity(parent_entity).add_child(equipment_entity);
+            cmd.entity(equipment_entity).set_parent(parent_entity);
             cmd.entity(equipment_entity)
                 .insert(Equipment::new(item_handle.clone()));
         }
 
-        // Remove self
-        cmd.entity(entity).remove::<EquippedBuilder>();
+        cmd.entity(parent_entity).remove::<EquippedBuilder>();
     }
 }

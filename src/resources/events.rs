@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use petgraph::graph::NodeIndex;
 
 use crate::prelude::*;
 
@@ -72,10 +73,20 @@ pub mod triggers {
     #[derive(Event)]
     pub struct SpawnCreature {
         pub name: String,
-        pub slice: Slice,
         pub translation: Vec2,
         pub rotation: f32,
         pub alliegance: Alliegance,
         pub spawner: Option<Entity>,
     }
+}
+
+#[derive(Event)]
+pub struct Save;
+
+#[derive(Event)]
+pub struct Load {
+    /// If None is specified, the load will attempt from the universe position
+    pub node: Option<NodeIndex>,
+    /// If specified, the player will be moved to the gate matching this node on entry to the zone
+    pub from_node: Option<NodeIndex>,
 }

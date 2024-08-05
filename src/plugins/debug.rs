@@ -21,7 +21,6 @@ impl Plugin for DebugPlugin {
                     draw_projectiles,
                     draw_lasers,
                     draw_health_and_damage,
-                    draw_slices,
                     draw_structures,
                     draw_destroyed,
                     draw_chests,
@@ -51,20 +50,6 @@ fn draw_controllers(
         }
         gizmos.cuboid(transform.with_scale(Vec3::splat(size)), color);
         gizmos.arrow(pos - *f, pos + *f, color);
-    }
-}
-
-fn draw_slices(mut gizmos: Gizmos, grids: Query<&Slice, With<Grid>>) {
-    for grid in grids.iter() {
-        gizmos
-            .grid_3d(
-                Vec3::new(0f32, 0f32, grid.z()),
-                default(),
-                UVec3::new(128, 128, 0),
-                Vec3::splat(16f32),
-                Color::srgba(1f32, 1f32, 1f32, 0.02f32),
-            )
-            .outer_edges();
     }
 }
 
@@ -182,9 +167,9 @@ fn draw_active_chests(
     }
 }
 
-fn draw_gates(mut gizmos: Gizmos, gates: Query<(&Gate, &Slice, &Transform, &Collider)>) {
+fn draw_gates(mut gizmos: Gizmos, gates: Query<(&Gate, &Transform, &Collider)>) {
     const COLOR: Color = Color::srgb(0.7, 0.2, 1.0);
-    for (_, _, transform, collider) in gates.iter() {
+    for (_, transform, collider) in gates.iter() {
         gizmos.sphere(
             transform.translation,
             default(),

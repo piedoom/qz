@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use super::Settings;
 
 /// Assets loaded by [`bevy_asset_loader`]
-#[derive(AssetCollection, Resource)]
+#[derive(AssetCollection, Resource, Clone)]
 pub struct Library {
     /// [`Settings`] `.ron` file
     #[asset(key = "settings")]
@@ -58,20 +58,9 @@ pub struct Building {
     pub credits: Option<usize>,
 }
 
-#[derive(Serialize, Deserialize, Reflect, Asset, Clone, Debug)]
-pub struct WorldRepresentation {
-    players: Vec<savefile::PlayerRepresentation>,
-}
-
-pub mod savefile {
-    use super::*;
-
-    #[derive(Serialize, Deserialize, Reflect, Clone, Debug)]
-    pub struct PlayerRepresentation {
-        pub player: Player,
-        pub inventory: Vec<(String, usize)>,
-        pub equipped: Vec<(String, usize)>,
-        pub credits: Credits,
-        pub slice: Slice,
-    }
+/// A serializable setup for the zone that will be spawned
+#[derive(Resource, Default, Asset, Reflect, Serialize, Deserialize)]
+pub struct ZoneDescription {
+    pub buildings: Vec<trigger::SpawnBuilding>,
+    pub gates: Vec<trigger::SpawnGate>,
 }

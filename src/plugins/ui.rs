@@ -20,8 +20,9 @@ fn draw_hud(
     mut selected_item: Local<Option<Item>>,
     mut store_events: EventWriter<StoreEvent>,
     mut errors: EventReader<GameError>,
+    maybe_universe_position: Option<Res<UniversePosition>>,
+    universe: Res<Universe>,
     equipment: Query<&Equipment>,
-    depth: Res<DepthCursor>,
     items: Res<Assets<Item>>,
     inventories: Query<&Inventory>,
     batteries: Query<&Battery>,
@@ -333,7 +334,14 @@ fn draw_hud(
             ..default()
         })
         .show(contexts.ctx_mut(), |ui| {
-            ui.horizontal_top(|ui| ui.heading(format!("Depth: {}", ***depth)));
+            if let Some(universe_position) = maybe_universe_position {
+                if let Some(node) = universe.graph.node_weight(universe_position.get()) {
+                    ui.horizontal_top(|ui| {
+                        ui.heading(node.name.clone());
+                        ui.heading(format!("Depth: {}", node.depth.clone()));
+                    });
+                }
+            }
             toasts.show(ui.ctx());
         });
 }

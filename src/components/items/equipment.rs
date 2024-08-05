@@ -131,9 +131,6 @@ impl Component for Equipment {
                     if add {
                         let equipment_type = retrieved_item.equipment.clone().unwrap();
 
-                        dbg!(&equipped);
-                        dbg!(&equipment_type.id());
-
                         // Register or add the entity in the equipped
                         let id = equipment_type.id();
                         if equipped.equipped.contains_key(&id) {

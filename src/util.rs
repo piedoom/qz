@@ -70,8 +70,8 @@ pub trait TransformExt {
         Transform::default().looking_to(Dir3::X, Dir3::Z)
     }
 
-    fn z_from_parts(translation: &Vec2, rotation: &f32, slice: &Slice) -> Transform {
-        let mut t = Transform::default_z().with_translation(translation.extend(slice.z()));
+    fn z_from_parts(translation: &Vec2, rotation: &f32) -> Transform {
+        let mut t = Transform::default_z().with_translation(translation.extend(0f32));
         t.rotate_z(*rotation);
         t
     }

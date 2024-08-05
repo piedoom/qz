@@ -1,7 +1,18 @@
-# doomy's somewhat opinionated bevy template
+# qz
 
-Supports bevy v0.13. Made as I got tired of writing the boilerplate for the
-way I liked to structure projects.
+## Program structure
+
+1. `main.rs` creates a new app with `ClientPlugins` (our entire game)
+2. `plugins/mod.rs` contains `ClientPlugins` and registers all plugins in the game
+3. `plugins/world.rs` has much of the world spawning logic. See its setup for the game world entrypoint
+
+Commands are used extensively to build the world. With `crate::prelude::*` included, look under the scope of `trigger::` to find possible commands.
+
+### World generation
+
+1. A graph with a depth of x to y is created
+2. Upon loading each node, the world is generated or loaded from file
+3. The world consists of serialized commands to build the scene
 
 ## Features
 

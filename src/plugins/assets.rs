@@ -17,6 +17,7 @@ impl Plugin for AssetsPlugin {
                 "battery.ron",
                 "armor.ron",
             ]))
+            .add_plugins(RonAssetPlugin::<ZoneDescription>::new(&["zd.ron"]))
             .add_plugins(RonAssetPlugin::<Creature>::new(&["creature.ron"]))
             .add_plugins(RonAssetPlugin::<Craft>::new(&["craft.ron"]))
             .add_plugins(RonAssetPlugin::<Building>::new(&["building.ron"]))

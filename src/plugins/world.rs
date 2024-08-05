@@ -5,6 +5,9 @@ use bevy::{prelude::*, utils::hashbrown::HashMap};
 use bevy_turborand::prelude::*;
 use big_brain::prelude::*;
 use leafwing_input_manager::prelude::*;
+
+use petgraph::graph::NodeIndex;
+use petgraph::visit::EdgeRef;
 use rand::seq::SliceRandom;
 use rand::Rng;
 use trigger::SpawnCreature;
@@ -43,7 +46,6 @@ impl Plugin for WorldPlugin {
             .register_type::<components::Player>()
             .register_type::<components::Projectile>()
             .register_type::<components::RepairBot>()
-            .register_type::<components::Slice>()
             .register_type::<components::Store>()
             .register_type::<components::SpawnedFrom>()
             .register_type::<components::Spawner>()
@@ -52,15 +54,12 @@ impl Plugin for WorldPlugin {
             .register_type::<components::WeaponType>()
             .insert_resource(ClearColor(Color::BLACK))
             .insert_resource(AmbientLight::NONE)
-            .init_resource::<WorldCursor>()
-            .init_resource::<DepthCursor>()
             .init_resource::<Universe>()
             .add_systems(OnEnter(AppState::main()), setup)
             .add_systems(
                 Update,
                 (
                     manage_spawners,
-                    manage_slice_transforms.after(manage_gates),
                     manage_gates,
                     setup_health,
                     cleanup_empty_chests,
@@ -70,20 +69,19 @@ impl Plugin for WorldPlugin {
             .observe(on_spawn_creature)
             .observe(on_spawn_gate)
             .observe(on_spawn_building)
-            .observe(on_spawn_slice);
+            .observe(on_despawn_zone)
+            .observe(on_generate_section)
+            .observe(on_generate_zone);
     }
 }
 
 fn setup(
     mut cmd: Commands,
     mut factions: ResMut<Factions>,
-    mut universe: ResMut<Universe>,
+    mut load_events: EventWriter<events::Load>,
     library: Res<Library>,
     crafts: Res<Assets<Craft>>,
 ) {
-    let slice = cmd.spawn((Slice(0), Transform::default())).id();
-    universe.add_node(slice);
-
     let player_faction = factions.register("player");
     let enemy_faction = factions.register("enemy");
     let player_alliegance = Alliegance {
@@ -91,6 +89,7 @@ fn setup(
         allies: [player_faction].into(),
         enemies: [enemy_faction].into(),
     };
+
     // Spawn player
     cmd.spawn((
         Player(0), // TODO: handle IDs for multiplayer
@@ -149,9 +148,19 @@ fn setup(
         },
     ));
 
-    cmd.trigger(trigger::SpawnSlice {
-        slice: Slice(0),
-        from_gate: None,
+    // cmd.trigger(trigger::SpawnSlice {
+    //     slice: Slice(0),
+    //     from_gate: None,
+    // });
+
+    cmd.trigger(trigger::GenerateSection {
+        length: 5..=7,
+        nodes_per_layer: 1..=2,
+    });
+
+    load_events.send(events::Load {
+        node: None,
+        from_node: None,
     });
 }
 
@@ -166,7 +175,6 @@ fn on_spawn_creature(
 ) {
     let SpawnCreature {
         name,
-        slice,
         translation,
         rotation,
         alliegance,
@@ -200,7 +208,7 @@ fn on_spawn_creature(
             collider: Collider::sphere(craft.size * 0.5),
             mass: Mass(craft.mass),
             craft: craft.clone(),
-            transform: Transform::z_from_parts(translation, rotation, slice),
+            transform: Transform::z_from_parts(translation, rotation),
             alliegance: alliegance.clone(),
             inventory: Inventory::with_capacity(craft.capacity)
                 .with_many_from_str(
@@ -209,7 +217,6 @@ fn on_spawn_creature(
                     &library,
                 )
                 .unwrap(),
-            slice: *slice,
             equipped,
             ..default()
         },
@@ -246,14 +253,11 @@ fn on_spawn_creature(
 fn on_spawn_gate(trigger: Trigger<trigger::SpawnGate>, mut cmd: Commands) {
     const GATE_RADIUS: f32 = 2.0f32;
     let trigger::SpawnGate {
-        use_entity,
-        slice,
         translation,
-        end_gate,
+        destination,
     } = trigger.event();
-    let entity = use_entity.unwrap_or_else(|| cmd.spawn(()).id());
 
-    cmd.entity(entity).insert((
+    cmd.spawn((
         Structure,
         Sensor,
         Collider::sphere(GATE_RADIUS),
@@ -261,15 +265,13 @@ fn on_spawn_gate(trigger: Trigger<trigger::SpawnGate>, mut cmd: Commands) {
             memberships: LayerMask::ALL,
             filters: LayerMask::ALL,
         },
-        *slice,
-        Gate::new(*end_gate),
-        Transform::z_from_parts(translation, &0f32, slice),
+        Gate::new(*destination),
+        Transform::z_from_parts(translation, &0f32),
     ));
 }
 
 fn on_spawn_building(
     trigger: Trigger<trigger::SpawnBuilding>,
-
     mut cmd: Commands,
     library: Res<Library>,
     buildings: Res<Assets<Building>>,
@@ -277,7 +279,6 @@ fn on_spawn_building(
 ) {
     let trigger::SpawnBuilding {
         name,
-        slice,
         translation,
         rotation,
         alliegance,
@@ -303,7 +304,6 @@ fn on_spawn_building(
     let mut entity = cmd.spawn((
         Name::new(name.clone()),
         Structure,
-        *slice,
         Health::from(health),
         Damage::default(),
         RigidBody::Dynamic,
@@ -325,7 +325,7 @@ fn on_spawn_building(
             filters: LayerMask::from([PhysicsCategory::Weapon, PhysicsCategory::Structure]),
         },
         LockedAxes::ROTATION_LOCKED,
-        Transform::z_from_parts(translation, rotation, slice),
+        Transform::z_from_parts(translation, rotation),
     ));
 
     if let Some(spawner) = spawner {
@@ -349,134 +349,169 @@ fn on_spawn_building(
     }
 }
 
-fn on_spawn_slice(
-    trigger: Trigger<trigger::SpawnSlice>,
+/// Generates a new map section in the graph from an optionally given node index.
+fn on_generate_section(
+    trigger: Trigger<trigger::GenerateSection>,
     mut cmd: Commands,
+    mut universe: ResMut<Universe>,
     mut rng: ResMut<GlobalRng>,
-    mut gates: Query<&mut Gate>,
-    transforms: Query<&Transform>,
-    factions: Res<Factions>,
+    universe_position: Option<ResMut<UniversePosition>>,
 ) {
-    let trigger::SpawnSlice { slice, from_gate } = trigger.event();
-    // Show a background grid
-    cmd.spawn((
-        Grid,
-        *slice,
-        Transform::z_from_parts(&Vec2::ZERO, &0f32, slice),
-    ));
+    let trigger::GenerateSection {
+        length,
+        nodes_per_layer,
+    } = trigger.event();
 
-    let player_faction = *factions.get_faction("player").unwrap();
-    let enemy_faction = *factions.get_faction("enemy").unwrap();
+    // We're going to generate this new section without connecting any nodes, and then we will attach it
 
-    // Rotate in a random direction and cast outwards
+    // Begin graph generation
+    let length = rng.usize(length.clone());
+
+    // We'll also save the first node
+    let mut first_node: NodeIndex = default();
+
+    // Contains all the nodes in the previous layer
+    let mut previous_nodes = vec![];
+
+    // I love LUA!
+    for z in 1..=length {
+        // If first or final, ensure only one node is spawned
+        match z {
+            0 => unreachable!(),
+            // First layer
+            1 => {
+                // Set up the first node. There will always be a single node on the first layer
+                first_node = universe.graph.add_node(Zone::new(0));
+                previous_nodes = [first_node].into();
+                // If the universe position doesn't exist, we insert it now
+                if universe_position.is_none() {
+                    cmd.insert_resource(UniversePosition::from(first_node));
+                }
+            }
+            // Every other layer
+            2.. => {
+                // Spawn a random number of nodes on this layer. There must always be at least one
+                let nodes_per_layer = rng.usize(nodes_per_layer.clone()).max(1);
+                let nodes: Vec<_> = (0..nodes_per_layer)
+                    .map(|_| {
+                        // literally dont worry about the index stuff ok?
+                        let node = universe.graph.add_node(Zone::new(z - 1));
+                        // Connect to a previous node at random
+                        let prev_node = rng.sample(&previous_nodes).unwrap();
+                        universe.graph.add_edge(*prev_node, node, ());
+                        node
+                    })
+                    .collect();
+
+                previous_nodes = nodes.clone();
+
+                // If the last in the section...
+                if z == length {
+                    // Connect our newly generated section onto the existing universe endpoints.
+                    // If no other sections exist yet, this won't do anything
+                    for previous_end in universe.end.clone().iter() {
+                        universe.graph.add_edge(*previous_end, first_node, ());
+                    }
+
+                    // We're all connected!
+
+                    // Update the end of this universe
+                    universe.end = nodes;
+                }
+            }
+        }
+    }
+}
+
+fn on_generate_zone(
+    trigger: Trigger<trigger::GenerateZone>,
+    mut universe: ResMut<Universe>,
+    mut rng: ResMut<GlobalRng>,
+    factions: Res<Factions>,
+    assets: Res<AssetServer>,
+) {
+    let trigger::GenerateZone { node } = trigger.event();
+
+    // Double check that:
+    // 1. The node exists in our universe
+    // 2. the zone doesn't already have a scene
+    if universe
+        .graph
+        .node_weight(*node)
+        .map(|zone| zone.scene.is_some())
+        .unwrap_or(true)
+    {
+        panic!("node does not exist or zone already has a scene");
+    }
+
+    let player_faction = factions.get_faction("player").unwrap();
+    let enemy_faction = factions.get_faction("enemy").unwrap();
+
     let rand_point = |rng: &mut GlobalRng| -> Vec2 {
         let mut t = Transform::default_z();
         t.rotate_z(rng.f32() * TAU);
-        let point = t.forward() * SEPARATION_SCALAR;
+        let point = t.forward() * 10f32;
         point.truncate()
     };
 
-    if **slice == 0 {
-        // always spawn a store on layer 0
-        cmd.trigger(trigger::SpawnBuilding {
-            name: "store".to_string(),
-            slice: *slice,
+    // Find necessary gates to spawn
+    let gates = universe
+        .graph
+        .edges(*node)
+        .map(|edge| universe.graph.edge_endpoints(edge.id()).unwrap())
+        .map(|(start, end)| {
+            dbg!((start, end));
+            let destination = if start == *node { end } else { start };
+            trigger::SpawnGate {
+                translation: rand_point(&mut rng),
+                destination,
+            }
+        })
+        .collect();
+
+    let zd: ZoneDescription = ZoneDescription {
+        buildings: [trigger::SpawnBuilding {
+            name: "nest".into(),
             translation: rand_point(&mut rng),
             rotation: 0f32,
             alliegance: Alliegance {
-                faction: Faction::none(),
-                allies: FactionSet::all(),
-                enemies: [enemy_faction].into(),
+                faction: *enemy_faction,
+                allies: [*enemy_faction].into(),
+                enemies: [*player_faction].into(),
             },
-        });
-    } else {
-        let home_gate_chance = rng.chance(1f64 / 8f64);
-        if home_gate_chance {
-            cmd.trigger(trigger::SpawnGate {
-                use_entity: None,
-                slice: *slice,
-                translation: rand_point(&mut rng),
-                end_gate: None,
-            });
-        }
-    }
+        }]
+        .into(),
+        gates,
+    };
 
-    // If a from gate is set, solve loose ends
-    if let Some(from_gate_entity) = from_gate {
-        let from_gate_transform = transforms.get(*from_gate_entity).unwrap();
+    // Set the scene into the node
+    let zone = universe.graph.node_weight_mut(*node).unwrap();
+    let scene_handle = assets.add(zd);
 
-        // Entity will be created in next layer
-        let return_gate_entity = cmd.spawn(()).id();
-
-        // Spawn the gate back
-        cmd.trigger(trigger::SpawnGate {
-            slice: *slice,
-            translation: from_gate_transform.translation.truncate(),
-            end_gate: Some(*from_gate_entity),
-            use_entity: Some(return_gate_entity),
-        });
-
-        // Set the gate to the new spawned layer
-        let mut from_gate = gates.get_mut(*from_gate_entity).unwrap();
-        from_gate.0 = Some(return_gate_entity);
-    }
-
-    // TODO: Graph stuff and ending gates
-
-    const SEPARATION_SCALAR: f32 = 24.0;
-    let store_chance = rng.chance(1f64 / 3f64);
-
-    cmd.trigger(trigger::SpawnGate {
-        slice: *slice,
-        translation: rand_point(&mut rng),
-        end_gate: None,
-        use_entity: None,
-    });
-
-    cmd.trigger(trigger::SpawnBuilding {
-        name: "store".to_string(),
-        slice: *slice,
-        translation: rand_point(&mut rng),
-        rotation: 0f32,
-        alliegance: Alliegance {
-            faction: Faction::none(),
-            allies: FactionSet::all(),
-            enemies: [enemy_faction].into(),
-        },
-    });
-
-    cmd.trigger(trigger::SpawnBuilding {
-        name: "nest".into(),
-        translation: rand_point(&mut rng), // TODO
-        rotation: 0f32,
-        slice: *slice,
-        alliegance: Alliegance {
-            faction: enemy_faction,
-            allies: [enemy_faction].into(),
-            enemies: [player_faction].into(),
-        },
-    });
+    zone.scene = Some(scene_handle);
 }
 
-fn manage_slice_transforms(
-    mut slices: Query<(&mut Transform, &Slice), Or<(Added<Transform>, Changed<Slice>)>>,
+fn on_despawn_zone(
+    trigger: Trigger<trigger::DespawnZone>,
+    mut cmd: Commands,
+    things: Query<Entity, (With<Collider>, Without<Player>)>,
 ) {
-    for (mut transform, slice) in slices.iter_mut() {
-        let z = **slice as f32 * -DISTANCE_BETWEEN_SLICES;
-        transform.translation.z = z;
+    let _ev = trigger.event();
+    for thing in things.iter() {
+        cmd.entity(thing).despawn_recursive();
     }
 }
 
 fn manage_spawners(
     mut cmd: Commands,
-    mut spawners: Query<(Entity, &mut Spawner, &Transform, &Slice), Without<Destroyed>>,
+    mut spawners: Query<(Entity, &mut Spawner, &Transform), Without<Destroyed>>,
     factions: Res<Factions>,
     spawned_from: Query<&SpawnedFrom, Without<Destroyed>>,
     time: Res<Time>,
 ) {
     let enemy_faction = *factions.get_faction("enemy").unwrap();
     let player_faction = *factions.get_faction("player").unwrap();
-    for (entity, mut spawner, transform, slice) in spawners.iter_mut() {
+    for (entity, mut spawner, transform) in spawners.iter_mut() {
         let mut rng = rand::thread_rng();
         let new_time = spawner.last_tick + Duration::from_secs_f32(spawner.tick);
         if time.elapsed() >= new_time
@@ -491,7 +526,6 @@ fn manage_spawners(
                     // Spawn thing
                     cmd.trigger(SpawnCreature {
                         name: spawn.clone(),
-                        slice: *slice,
                         translation: transform.translation.truncate(),
                         rotation: rng.gen_range(0f32..TAU),
                         alliegance: Alliegance {
@@ -511,36 +545,27 @@ fn manage_spawners(
     }
 }
 
-/// If anything with a collider comes in contact with the gate, it will change slices
 fn manage_gates(
     mut cmd: Commands,
-    mut slices: Query<&mut Slice>,
-    mut cursor: Local<usize>,
-    keyboard: Res<ButtonInput<KeyCode>>,
-    gates: Query<(Entity, &Gate, &CollidingEntities)>,
+    mut events: EventWriter<events::Load>,
+    mut universe_position: ResMut<UniversePosition>,
+    player_actions: Query<
+        &leafwing_input_manager::action_state::ActionState<crate::prelude::Action>,
+        With<Player>,
+    >,
+    gates: Query<(&Gate, &CollidingEntities)>,
 ) {
-    for (gate_entity, gate, collisions) in gates.iter() {
-        if keyboard.just_pressed(KeyCode::KeyF) {
-            for collision in collisions.iter() {
-                match gate.0 {
-                    Some(pair_gate) => {
-                        if let Ok(pair_slice) = slices.get(pair_gate).cloned() {
-                            if let Ok(mut slice) = slices.get_mut(*collision) {
-                                **slice = *pair_slice
-                            }
-                        }
-                    }
-                    None => {
-                        // We already spawned the first layer, so increase first
-                        *cursor += 1;
-                        cmd.trigger(trigger::SpawnSlice {
-                            from_gate: Some(gate_entity),
-                            slice: Slice(*cursor),
-                        });
-                        if let Ok(mut slice) = slices.get_mut(*collision) {
-                            **slice += 1;
-                        }
-                    }
+    for (gate, collisions) in gates.iter() {
+        for collision in collisions.iter() {
+            if let Ok(actions) = player_actions.get(*collision) {
+                if actions.just_pressed(&crate::prelude::Action::Interact) {
+                    let old_universe_position = universe_position.0;
+                    universe_position.0 = gate.destination();
+                    cmd.trigger(trigger::DespawnZone);
+                    events.send(events::Load {
+                        node: Some(gate.destination()),
+                        from_node: Some(old_universe_position),
+                    });
                 }
             }
         }

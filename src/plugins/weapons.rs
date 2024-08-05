@@ -28,7 +28,6 @@ fn manage_weapons(
             &mut Energy,
             &Equipped,
             &LinearVelocity,
-            &Slice,
             &Alliegance,
         ),
         Without<Destroyed>,
@@ -36,7 +35,7 @@ fn manage_weapons(
     time: Res<Time>,
     sq: SpatialQuery,
 ) {
-    for (entity, transform, mut total_energy, equipped, linear_velocity, slice, alliegance) in
+    for (entity, transform, mut total_energy, equipped, linear_velocity, alliegance) in
         parents.iter_mut()
     {
         // Get all entities that are weapons
@@ -103,7 +102,6 @@ fn manage_weapons(
                                                 lifetime: Duration::from_secs_f32(lifetime),
                                             },
                                             Projectile { damage },
-                                            *slice,
                                             alliegance.clone(),
                                             Sensor,
                                             Collider::sphere(radius),

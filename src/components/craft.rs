@@ -75,7 +75,6 @@ pub struct CraftBundle {
     pub inventory: Inventory,
     pub equipped: EquippedBuilder,
     pub collision_layers: CollisionLayers,
-    pub slice: Slice,
     pub credits: Credits,
     pub rotation: Rotation,
 }
@@ -111,7 +110,6 @@ impl Default for CraftBundle {
                 memberships: LayerMask::from([PhysicsCategory::Craft]),
                 filters: LayerMask::from([PhysicsCategory::Craft, PhysicsCategory::Weapon]),
             },
-            slice: default(),
             credits: default(),
             transform: Transform::default(),
             global_transform: GlobalTransform::IDENTITY,
