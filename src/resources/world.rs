@@ -8,23 +8,28 @@ use crate::prelude::*;
 pub struct Universe {
     /// Tracks the tail end of the `Universe` where more sections may be appended
     pub end: Vec<NodeIndex>,
+    /// The graph of the levels in this `Universe`
     pub graph: Graph<Zone, (), Undirected>,
 }
 
 impl Universe {
+    /// The type of this graph
     pub type GRAPH = Graph<Zone, (), Undirected>;
 }
 
 /// A node within the [`Universe`]
 pub struct Zone {
+    /// The name identifier of this zone
     pub name: String,
     /// A `Zone` may have an associated scene, if it was already built. If this value is `None`,
     /// a new scene must be generated for this `Zone`.
     pub scene: Option<Handle<ZoneDescription>>,
+    /// The depth of this `Zone` in the [`Universe`]. This can help dictate difficulty
     pub depth: usize,
 }
 
 impl Zone {
+    /// Create a new zone with a depth. This is generally used while generating a new [`Universe` section]
     pub fn new(depth: usize) -> Self {
         Self {
             name: (0..2)
@@ -42,6 +47,7 @@ impl Zone {
 pub struct UniversePosition(pub NodeIndex);
 
 impl UniversePosition {
+    /// Get the current position of the universe
     pub fn get(&self) -> NodeIndex {
         self.0
     }

@@ -14,14 +14,16 @@ use crate::prelude::*;
 /// for multiple equips of the same type to be used at once
 #[derive(Debug, Default, Component, Clone, Reflect, Serialize, Deserialize)]
 pub struct Equipped {
-    /// A map of [`EquipmentType`]s to equipped entities. This is updated via hooks and is hopefully never invalid.
+    /// A map of [`EquipmentTypeId`]s to equipped entities. This is updated via hooks and is hopefully never invalid.
     /// This value is essentially a cache.
     pub equipped: HashMap<EquipmentTypeId, HashSet<Entity>>,
+    /// Defines the shape of what can be `equipped`, where `usize` is the total maximum equippable of that type.
     pub slots: HashMap<EquipmentTypeId, usize>,
     // pub inventory: Inventory,
 }
 
 impl Equipped {
+    /// Available space left
     pub fn available(&self, equipment_type: &EquipmentTypeId) -> usize {
         let max = self.slots.get(equipment_type).cloned().unwrap_or_default();
         let current = self
@@ -32,6 +34,7 @@ impl Equipped {
         max - current
     }
 
+    /// Total mass of equipped items
     pub fn mass(&self, item_assets: &Assets<Item>, items: &Query<&Equipment>) -> f32 {
         self.equipped
             .iter()
@@ -48,26 +51,39 @@ impl Equipped {
 /// Build an `Equipped` with starting items
 #[derive(Debug, Component, Default, Clone, Reflect, Serialize, Deserialize)]
 pub struct EquippedBuilder {
+    /// Names of items to equip
     pub equipped: Vec<String>,
+    /// Slot shape definitions
     pub slots: Vec<(EquipmentTypeId, usize)>,
 }
 
 /// Allows us to specify specific equipment categories
 #[derive(Debug, Reflect, Clone, Serialize, Deserialize)]
 pub enum EquipmentType {
+    /// A weapon that can fire
     Weapon(Weapon),
+    /// Repairs damage over time
     RepairBot(RepairBot),
+    /// Generates [`Energy`]
     Generator(Generator),
+    /// Stores [`Energy`]
     Battery(Battery),
+    /// Increases maximum [`Health`]
     Armor(Armor),
 }
 
+/// Defines an `EquipmentType` without associated information. This should be kept in sync with `EquipmentType`.
 #[derive(Copy, Clone, Debug, Reflect, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum EquipmentTypeId {
+    /// A weapon that can fire
     Weapon,
+    /// Repairs damage over time
     RepairBot,
+    /// Generates [`Energy`]
     Generator,
+    /// Stores [`Energy`]
     Battery,
+    /// Increases maximum [`Health`]
     Armor,
 }
 
@@ -102,10 +118,12 @@ impl EquipmentType {
 pub struct Equipment(Handle<Item>);
 
 impl Equipment {
+    /// Obtain the handle of this [`Item`]
     pub fn handle(&self) -> Handle<Item> {
         self.0.clone()
     }
 
+    /// Crate a new [`Equipment`] from an existing [`Item`] handle
     pub fn new(item_handle: Handle<Item>) -> Self {
         Self(item_handle)
     }
@@ -116,6 +134,7 @@ impl Component for Equipment {
 
     // When adding an item as a component...
     fn register_component_hooks(hooks: &mut ComponentHooks) {
+        /// Helper function since we do basically the same thing on add and remove except for a minus sign
         fn modify(world: &mut DeferredWorld, entity: Entity, add: bool) {
             if let (Some(parent), Some(equipment)) = (
                 world.get::<Parent>(entity).map(|p| p.get()),

@@ -15,8 +15,7 @@ pub struct Inventory {
     /// Spaces out of the capacity that are occupied by items
     #[serde(default)]
     space_occupied: usize,
-
-    // TODO: make this work with serde
+    /// Items and their amount in the inventory
     #[serde(skip)]
     items: HashMap<Handle<Item>, usize>,
 }
@@ -32,6 +31,7 @@ impl Default for Inventory {
 }
 
 impl Inventory {
+    /// Create a new inventory with almost infinite capacity
     pub fn max_capacity() -> Self {
         Self {
             capacity: usize::MAX,
@@ -40,26 +40,32 @@ impl Inventory {
         }
     }
 
+    /// Get the amount of a given `Item` handle
     pub fn quantity(&self, item: &Handle<Item>) -> usize {
         self.items.get(item).cloned().unwrap_or_default()
     }
 
+    /// Maximum capacity of this inventory
     pub fn capacity(&self) -> usize {
         self.capacity
     }
 
+    /// Gets space occupied
     pub fn space_occupied(&self) -> usize {
         self.space_occupied
     }
 
+    /// Gets remaining space
     pub fn space_remaining(&self) -> usize {
         self.capacity - self.space_occupied
     }
 
+    /// Iterates through all [`Item`] handles in this [`Inventory`]
     pub fn iter(&self) -> hashbrown::hash_map::Iter<Handle<Item>, usize> {
         self.items.iter()
     }
 
+    /// Creates a new [`Inventory`] with a specified `capacity`
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             capacity,
@@ -67,6 +73,7 @@ impl Inventory {
         }
     }
 
+    /// Adds an item into the [`Inventory`], and may error.
     pub fn with(
         mut self,
         item: Handle<Item>,
@@ -108,6 +115,7 @@ impl Inventory {
         }
     }
 
+    /// Try to remove an item from the inventory
     pub fn remove(
         &mut self,
         item: Handle<Item>,
@@ -148,16 +156,19 @@ impl Inventory {
         }
     }
 
+    /// Get the mass of all items in the inventory
     pub fn mass(&self, items: &Assets<Item>) -> f32 {
         self.items.iter().fold(0f32, |a, (handle, amt)| {
             a + (items.get(handle).unwrap().mass * *amt as f32)
         })
     }
 
+    /// Returns `true` if there are no items in the inventory
     pub fn is_empty(&self) -> bool {
         self.items.is_empty()
     }
 
+    /// Count the number of items in the inventory
     pub fn count(&self, item: Handle<Item>) -> usize {
         self.items.get(&item).cloned().unwrap_or_default()
     }
@@ -200,6 +211,7 @@ impl Inventory {
         Ok(())
     }
 
+    /// Create an inventory with named items
     pub fn with_many_from_str(
         mut self,
         hash_map: HashMap<String, usize>,
@@ -217,6 +229,8 @@ impl Inventory {
         Ok(self)
     }
 
+    /// Clears the map, returning all key-value pairs as an iterator. Keeps the
+    /// allocated memory for reuse.
     pub fn drain(&mut self) -> hashbrown::hash_map::Drain<Handle<Item>, usize> {
         self.space_occupied = 0;
         self.items.drain()

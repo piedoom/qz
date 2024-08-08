@@ -4,9 +4,9 @@
     speed: 6.0,
     rotation: 240.0,
     brake: 100.0,
-    acceleration: 700.0,
+    acceleration: 300.0,
     health: 12,
-    size: 1.0,
-    mass: 24.0,
+    size: 0.6,
+    mass: 12.0,
     capacity: 55,
 )

@@ -5,30 +5,13 @@ use big_brain::prelude::*;
 
 use crate::prelude::*;
 
-pub(crate) fn danger_scorer(
-    mut dangers: Query<(&Actor, &scorers::Danger, &mut Score)>,
-    other: Query<(&InRange, &Transform)>,
-    transforms: Query<&Transform>,
-) {
-    for (actor, danger, mut score) in dangers.iter_mut() {
-        if let Ok((in_range, transform)) = other.get(actor.0) {
-            // Find closest enemy
-            score.set(match in_range.enemies.first() {
-                Some(enemy) => match transforms.get(*enemy) {
-                    Ok(enemy_transform) => {
-                        let distance_to_enemy_squared = transform
-                            .translation
-                            .distance_squared(enemy_transform.translation);
-                        danger.score(distance_to_enemy_squared)
-                    }
-                    Err(_) => 0f32,
-                },
-                None => 0f32,
-            });
-        }
-    }
-}
-
+/// Scorer system for normalized facing value, where 0.0 is facing 180 degrees away, and 1.0 is facing exactly
+///
+/// # System overview
+///
+/// 1. Get all entities with the scorer
+/// 2. Get the transform of the first enemy in range
+/// 3. Find the turn angle to reach that enemy, and divide it by `PI`
 pub(crate) fn facing_scorer(
     mut facings: Query<(&Actor, &mut Score), With<scorers::Facing>>,
     other: Query<(&InRange, &Transform)>,

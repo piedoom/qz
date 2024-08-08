@@ -1,14 +1,13 @@
-//! Moveable thing
-
 use avian3d::prelude::*;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::prelude::*;
-
+/// Marker component for a destroyed entity
 #[derive(Component, Reflect)]
 pub struct Destroyed;
 
+/// Total alotted hitpoints
 #[derive(Component, Reflect, Deref, DerefMut)]
 pub struct Health(pub usize);
 
@@ -56,26 +55,44 @@ pub struct Craft {
     pub mass: f32,
     /// Inventory capacity
     pub capacity: usize,
+    /// Craft value
     pub value: usize,
 }
 
+/// Common shape for a moving craft, such as for AI or the player
 #[derive(Bundle)]
 pub struct CraftBundle {
+    /// Starting [`Energy`]
     pub energy: Energy,
+    /// A [`Controller`] allows this craft to move
     pub controller: Controller,
+    /// Always will be set to `Dynamic`
     pub rigid_body: RigidBody,
+    /// As a convention, use a ball
     pub collider: Collider,
+    /// Added so that we can control it later, as it isn't auto-added with the collider
     pub linear_damping: LinearDamping,
+    /// Mass will be calculated based on craft and inventory weight
     pub mass: Mass,
+    /// The actual [`Craft`] specification from our assets
     pub craft: Craft,
+    /// Axes locked to only move in the Z plane with rotation only on the Z axis
     pub locked_axes: LockedAxes,
+    /// [`Transform`]
     pub transform: Transform,
+    /// [`GlobalTransform`]
     pub global_transform: GlobalTransform,
+    /// [`Alliegance`]
     pub alliegance: Alliegance,
+    /// [`Inventory`]
     pub inventory: Inventory,
+    /// Serializable builder for an [`Equipped`]
     pub equipped: EquippedBuilder,
+    /// [`CollisionLayers`]
     pub collision_layers: CollisionLayers,
+    /// Starting [`Credits`]
     pub credits: Credits,
+    /// Initial physics [`Rotation`]
     pub rotation: Rotation,
 }
 

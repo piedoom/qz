@@ -4,6 +4,7 @@ use avian3d::prelude::{
 };
 use bevy::prelude::*;
 
+/// [`Controller`] logic
 pub struct ControllersPlugin;
 
 impl Plugin for ControllersPlugin {
@@ -37,7 +38,6 @@ fn apply_controller_movement(
     characters.iter_mut().for_each(
         |(transform, craft, controller, mut velocity, mut angular, mut damping)| {
             **velocity += controller.thrust * transform.forward() * dt * craft.acceleration;
-            **velocity = velocity.clamp_length_max(craft.speed);
             **angular = controller.angular_thrust * -Vec3::Z * dt * craft.rotation;
             **damping = controller.brake * dt * craft.brake;
         },

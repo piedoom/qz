@@ -9,12 +9,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::prelude::*;
 
+/// Repairs damage at a specified rate
 #[derive(Clone, Debug, Default, Component, Reflect, Serialize, Deserialize, PartialEq)]
 pub struct RepairBot {
     /// Repair rate / s
     pub rate: f32,
 }
 
+/// Increases overal [`Health`]
 #[derive(Clone, Debug, Default, Reflect, Serialize, Deserialize, PartialEq)]
 pub struct Armor {
     /// Armor amount
@@ -24,6 +26,7 @@ pub struct Armor {
 impl Component for Armor {
     const STORAGE_TYPE: bevy::ecs::component::StorageType = StorageType::Table;
     fn register_component_hooks(hooks: &mut ComponentHooks) {
+        /// Helper function since add/remove are the same except for the operation
         fn modify_health(world: &mut DeferredWorld, entity: Entity, add: bool) {
             if let (Some(parent), Some(armor)) =
                 (world.get::<Parent>(entity), world.get::<Armor>(entity))

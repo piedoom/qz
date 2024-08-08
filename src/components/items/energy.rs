@@ -6,6 +6,7 @@ use crate::error::EnergyError;
 /// Item that contributes to a parent entity's [`Energy`] store
 #[derive(Clone, Debug, Component, Reflect, Serialize, Deserialize, Default, PartialEq)]
 pub struct Generator {
+    /// How much [`Energy`] is restored per second
     pub recharge_rate: f32,
 }
 
@@ -14,9 +15,11 @@ pub struct Generator {
 pub struct Battery(f32);
 
 impl Battery {
+    /// Creates a [`Battery`] with a specific capacity
     pub fn from_capacity(capacity: f32) -> Self {
         Self(capacity)
     }
+    /// Gets the battery capacity
     pub fn capacity(&self) -> f32 {
         self.0
     }
@@ -43,10 +46,14 @@ impl Energy {
         }
     }
 
+    /// Clamp the energy to a specified maximum bound
+    #[inline(always)]
     pub fn clamp(&mut self, max: f32) {
         self.0 = self.0.min(max);
     }
 
+    /// Obtain the current charge
+    #[inline(always)]
     pub fn charge(&self) -> f32 {
         self.0
     }

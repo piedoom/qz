@@ -3,9 +3,13 @@ use avian3d::prelude::*;
 use bevy::prelude::*;
 use big_brain::BigBrainSet;
 
+/// Utility AI actions
 mod actions;
+
+/// Utility AI scorers
 mod scorers;
 
+/// Plugin for Utility AI logic
 pub struct AiPlugin;
 
 impl Plugin for AiPlugin {
@@ -14,12 +18,12 @@ impl Plugin for AiPlugin {
             // Scorers
             .add_systems(
                 PreUpdate,
-                (scorers::danger_scorer, scorers::facing_scorer).in_set(BigBrainSet::Scorers),
+                (scorers::facing_scorer).in_set(BigBrainSet::Scorers),
             )
             // Actions
             .add_systems(
                 PreUpdate,
-                (actions::attack, actions::persue, actions::retreat).in_set(BigBrainSet::Actions),
+                (actions::attack, actions::persue).in_set(BigBrainSet::Actions),
             );
     }
 }
@@ -67,12 +71,19 @@ fn update_in_range(
     }
 }
 
+/// Move controllers towards the given waypoint
+///
+/// # System overview
+///
+/// 1. Get entities with a controller and a waypoint
+/// 2. If the waypoint is set, find the turn angle needed to face the target
+/// 3. Once the angle is within a certain tolerance, thrust forwards
 pub(crate) fn move_towards_waypoint(
     mut query: Query<(Entity, &mut Controller, &Waypoint)>,
     transforms: Query<&Transform>,
 ) {
-    for (entity, mut controller, targeting) in query.iter_mut() {
-        if let Some(target_transform) = match targeting {
+    for (entity, mut controller, waypoint) in query.iter_mut() {
+        if let Some(target_transform) = match waypoint {
             Waypoint::Entity(e) => transforms.get(*e).ok().cloned(),
             Waypoint::Position(p) => Some(Transform::from_translation(p.extend(0f32))),
         } {
@@ -82,7 +93,8 @@ pub(crate) fn move_towards_waypoint(
 
                 controller.angular_thrust = turn.into();
                 if angle < 20f32.to_radians() {
-                    controller.thrust = 1f32
+                    controller.thrust = 1f32;
+                    controller.angular_thrust = 0f32;
                 } else {
                     controller.thrust = 0f32
                 }

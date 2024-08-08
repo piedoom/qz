@@ -5,8 +5,6 @@ use bevy::prelude::*;
 
 use crate::{prelude::*, resources::Library};
 
-pub const DISTANCE_BETWEEN_SLICES: f32 = 70f32;
-
 /// Additional methods for the [`RangeInclusive`] type
 pub trait RangeInclusiveExt<T> {
     /// Perform a linear interpolation
@@ -24,10 +22,15 @@ impl RangeInclusiveExt<f32> for RangeInclusive<f32> {
     }
 }
 
+/// Extention methods for asset ergonomics
 pub trait LibraryExt {
+    /// Get a creature (`*.creature.ron`) by name string
     fn creature(&self, name: impl AsRef<str>) -> Option<Handle<Creature>>;
+    /// Get a craft (`*.craft.ron`) by name string
     fn craft(&self, name: impl AsRef<str>) -> Option<Handle<Craft>>;
+    /// Get a building (`*.building.ron`) by name string
     fn building(&self, name: impl AsRef<str>) -> Option<Handle<Building>>;
+    /// Get an item (`*.item.ron`) by name string
     fn item(&self, name: impl AsRef<str>) -> Option<Handle<Item>>;
 }
 
@@ -57,19 +60,23 @@ impl<'a> LibraryExt for Res<'a, Library> {
     }
 }
 
+/// Extension methods for [`TransformBundle`]
 pub trait TransformBundleExt {
+    /// [`TransformBundle::default`], except with Z-up instead of Y-up, as god intended
     fn default_z() -> TransformBundle {
         TransformBundle::from_transform(Transform::default().looking_to(Dir3::X, Dir3::Z))
     }
 }
 impl TransformBundleExt for TransformBundle {}
 
+/// Extension methods for [`Transform`]
 pub trait TransformExt {
-    /// Default with Z-up
+    /// [`Transform::default`], except with Z-up instead of Y-up
     fn default_z() -> Transform {
         Transform::default().looking_to(Dir3::X, Dir3::Z)
     }
 
+    /// Creates a `Transform` with a given `translantion` point and `rotation` in radians
     fn z_from_parts(translation: &Vec2, rotation: &f32) -> Transform {
         let mut t = Transform::default_z().with_translation(translation.extend(0f32));
         t.rotate_z(*rotation);
@@ -111,9 +118,13 @@ impl TransformExt for Transform {
     }
 }
 
+/// Direction of a rotation, typically a rotation that is made to face another position
 pub enum RotationDirection {
+    /// Clockwise rotation
     Clockwise,
+    /// Counter clockwise rotation
     CounterClockwise,
+    /// No rotation (e.g., already facing)
     None,
 }
 
@@ -127,23 +138,20 @@ impl From<RotationDirection> for f32 {
     }
 }
 
+/// Broad physics lasers so that we can more easily sense collisions
 #[derive(PhysicsLayer)]
 pub enum PhysicsCategory {
+    /// Buildings like a station or spawner
     Structure,
+    /// Vehicles like the player or enemy creatures
     Craft,
+    /// Weapon effects, like projectiles and lasers
     Weapon,
+    /// Items, like chests and floating credits
     Item,
 }
 
-pub fn item<'a>(
-    name: impl AsRef<str>,
-    items: &'a Assets<Item>,
-    library: &Library,
-) -> Option<(&'a Item, Handle<Item>)> {
-    let handle = library.items.get(&format!("items/{}.ron", name.as_ref()))?;
-    items.get(handle).map(|x| (x, handle.clone()))
-}
-
+/// Piped system to handle errors and show them as in-game toasts
 pub fn handle_errors<E>(In(result): In<Result<(), E>>, mut errors: EventWriter<GameError>)
 where
     E: std::fmt::Display + Into<GameError>,

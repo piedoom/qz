@@ -1,6 +1,7 @@
 use crate::prelude::*;
 use bevy::prelude::*;
 
+/// All registered factions in the game. Factions can be registered and given an ID, which are then referenced with this resource.
 #[derive(Resource, Default)]
 pub struct Factions(bimap::BiHashMap<String, Faction>);
 
@@ -22,10 +23,12 @@ impl Factions {
         }
     }
 
+    /// Try to get the faction by its name
     pub fn get_faction(&self, name: impl AsRef<str>) -> Option<&Faction> {
         self.0.get_by_left(name.as_ref())
     }
 
+    /// Try to get the faction name by the faction ID
     pub fn get_name(&self, faction: impl AsRef<Faction>) -> Option<&String> {
         self.0.get_by_right(faction.as_ref())
     }

@@ -97,6 +97,7 @@ fn apply_player_input(
     mut weapons: Query<&mut Weapon>,
     mut inventory_events: EventWriter<InventoryEvent>,
     mut dock_events: EventWriter<DockEvent>,
+    mut credits: Query<&mut Credits>,
     camera: Query<(&Camera, &GlobalTransform)>,
     window: Query<&Window, With<PrimaryWindow>>,
 ) {
@@ -157,10 +158,19 @@ fn apply_player_input(
         // Take all nearby items
         if actions.just_pressed(&Action::Take) {
             for chest in chests_in_range.chests.iter() {
-                inventory_events.send(InventoryEvent::TransferAll {
-                    from: *chest,
-                    to: player_entity,
-                });
+                if let Ok([mut player_credits, mut chest_credits]) =
+                    credits.get_many_mut([player_entity, *chest])
+                {
+                    // credits chest
+                    let amount = chest_credits.get();
+                    chest_credits.transfer(&mut player_credits, amount).unwrap();
+                } else {
+                    // item chest
+                    inventory_events.send(InventoryEvent::TransferAll {
+                        from: *chest,
+                        to: player_entity,
+                    });
+                }
             }
         }
 

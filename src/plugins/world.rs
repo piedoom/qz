@@ -104,7 +104,7 @@ fn setup(
             range: 5f32,
         },
         CraftBundle {
-            craft: crafts.get(&library.craft("pest").unwrap()).unwrap().clone(),
+            craft: crafts.get(&library.craft("bev").unwrap()).unwrap().clone(),
             alliegance: player_alliegance.clone(),
             inventory: Inventory::default(),
             equipped: EquippedBuilder {
@@ -148,11 +148,6 @@ fn setup(
         },
     ));
 
-    // cmd.trigger(trigger::SpawnSlice {
-    //     slice: Slice(0),
-    //     from_gate: None,
-    // });
-
     cmd.trigger(trigger::GenerateSection {
         length: 5..=7,
         nodes_per_layer: 1..=2,
@@ -166,8 +161,8 @@ fn setup(
 
 fn on_spawn_creature(
     trigger: Trigger<trigger::SpawnCreature>,
-
     mut cmd: Commands,
+    mut rng: ResMut<GlobalRng>,
     library: Res<Library>,
     creatures: Res<Assets<Creature>>,
     crafts: Res<Assets<Craft>>,
@@ -188,6 +183,7 @@ fn on_spawn_creature(
         inventory,
         equipped,
         range,
+        credits,
     } = creatures.get(&creature).cloned().unwrap();
     let craft = library
         .crafts
@@ -228,6 +224,12 @@ fn on_spawn_creature(
     if let Some(spawner) = spawner {
         ent.insert((SpawnedFrom(*spawner),));
     }
+
+    let credits = rng.usize(credits.0..=credits.1);
+    if credits != 0 {
+        ent.insert(Credits::new(credits));
+    }
+
     ent.insert(
         Thinker::build()
             .picker(FirstToScore { threshold: 0.8 })
@@ -454,18 +456,27 @@ fn on_generate_zone(
         point.truncate()
     };
 
+    let mut rotation = Transform::default_z();
+    rotation.rotate_z(rng.f32() * TAU);
+
     // Find necessary gates to spawn
-    let gates = universe
+    let endpoints = universe
         .graph
         .edges(*node)
         .map(|edge| universe.graph.edge_endpoints(edge.id()).unwrap())
+        .collect::<Vec<_>>();
+    let endpoints_len = endpoints.len();
+    let gates = endpoints
+        .into_iter()
         .map(|(start, end)| {
             dbg!((start, end));
             let destination = if start == *node { end } else { start };
-            trigger::SpawnGate {
-                translation: rand_point(&mut rng),
+            let t = trigger::SpawnGate {
+                translation: (rotation.forward() * 10f32).truncate(),
                 destination,
-            }
+            };
+            rotation.rotate_z(TAU / endpoints_len as f32);
+            t
         })
         .collect();
 
@@ -584,9 +595,15 @@ fn setup_health(mut cmd: Commands, crafts: Query<(Entity, &Craft), Added<Craft>>
 fn cleanup_empty_chests(
     mut cmd: Commands,
     changed_chests: Query<(Entity, &Inventory), (With<Chest>, Changed<Inventory>)>,
+    changed_credit_chests: Query<(Entity, &Credits), (With<Chest>, Without<Inventory>)>,
 ) {
     for (entity, inventory) in changed_chests.iter() {
         if inventory.is_empty() {
+            cmd.entity(entity).despawn();
+        }
+    }
+    for (entity, credits) in changed_credit_chests.iter() {
+        if credits.get() == 0 {
             cmd.entity(entity).despawn();
         }
     }

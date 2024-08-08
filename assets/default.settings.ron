@@ -10,7 +10,7 @@ Settings(
             brake: KeyS,
             fire: Space,
             take: KeyC,
-            interact: KeyR,
+            interact: KeyF,
             console: Backquote,
         ),
     ),

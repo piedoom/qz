@@ -1,9 +1,8 @@
-//! Non players
-
 use bevy::{prelude::*, utils::HashSet};
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 
+/// Marks entities as allies or enemies of one another
 #[derive(Component, Clone, Reflect, Default, Serialize, Deserialize)]
 pub struct Alliegance {
     /// The faction of the entity
@@ -19,27 +18,34 @@ pub struct Alliegance {
 pub struct Faction(u32);
 
 impl Faction {
+    /// Create a new random faction ID
     pub fn new() -> Faction {
         Self(rand::thread_rng().next_u32())
     }
 
+    /// Create a new faction without any explicitly assigned faction. It may, however, still resolve.
     pub fn none() -> Faction {
         Self::default()
     }
 
+    /// Return this Faction ID
     pub fn id(&self) -> u32 {
         self.0
     }
 }
 
+/// A collection of `Faction`s
 #[derive(PartialEq, Eq, Clone, Reflect, Default, Serialize, Deserialize)]
 pub struct FactionSet {
+    /// Hash set of each faction that is a part of this faction set. The `FactionSet` is essentially a `HashSet`
+    /// except with the ability to set `all` without needing to specify every faction ID
     data: HashSet<Faction>,
     /// Whether to treat this as including all potential factions. Overrides faction data.
     all: bool,
 }
 
 impl FactionSet {
+    /// Create a new `FactionSet` including all factions
     pub fn all() -> Self {
         Self {
             data: [].into(),
@@ -47,6 +53,7 @@ impl FactionSet {
         }
     }
 
+    /// Returns `true` if the set contains a value.
     pub fn contains<Q>(&self, value: &Q) -> bool
     where
         Q: std::hash::Hash + bevy::utils::hashbrown::Equivalent<Faction>,

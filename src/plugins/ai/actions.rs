@@ -3,6 +3,14 @@ use big_brain::prelude::*;
 
 use crate::prelude::*;
 
+/// System to controll attacking entities
+///
+/// # System overview
+///
+/// 1. Get all entities that want to attack
+/// 2. Loop through those entities' children
+/// 3. Check if child is a weapon. If so, set `wants_to_fire` to `true`
+/// 4. When finished attacking, set `wants_to_fire` to `false`
 pub(crate) fn attack(
     mut actors: Query<(&Actor, &mut ActionState), With<actions::Attack>>,
     mut weapons: Query<&mut Weapon>,
@@ -25,6 +33,10 @@ pub(crate) fn attack(
                 set_wants_to_fire(*actor, true);
                 Some(ActionState::Executing)
             }
+            ActionState::Executing => {
+                set_wants_to_fire(*actor, true);
+                None
+            }
             ActionState::Cancelled => Some(ActionState::Success),
             ActionState::Failure | ActionState::Success => {
                 set_wants_to_fire(*actor, false);
@@ -38,6 +50,13 @@ pub(crate) fn attack(
     }
 }
 
+/// System that will fly a [`Controller`] to a given entity [`Waypoint`], if it exists
+///
+/// # System overview
+///
+/// 1. Get all entities that want to persue
+/// 2. If state is requested, set the waypoint to the nearest enemy in range
+/// 3. When cancelled or otherwise ended, the waypoint is removed
 pub(crate) fn persue(
     mut cmd: Commands,
     mut actors: Query<(&Actor, &mut ActionState), With<actions::Persue>>,
@@ -59,40 +78,6 @@ pub(crate) fn persue(
                         })
                         .ok()
                         .flatten()
-                        .unwrap_or(ActionState::Failure),
-                )
-            }
-            ActionState::Cancelled => Some(ActionState::Success),
-            ActionState::Failure | ActionState::Success => {
-                // remove the waypoint
-                cmd.entity(actor.0).remove::<Waypoint>();
-                None
-            }
-            _ => None,
-        };
-        if let Some(new_state) = new_state {
-            *state = new_state;
-        }
-    }
-}
-
-pub(crate) fn retreat(
-    mut cmd: Commands,
-    mut actors: Query<(&Actor, &mut ActionState), With<actions::Retreat>>,
-    actor_query: Query<&SpawnedFrom>,
-) {
-    for (actor, mut state) in actors.iter_mut() {
-        let new_state = match state.as_ref() {
-            ActionState::Requested => {
-                // Set the waypoint back to the original spawnpoint
-                Some(
-                    actor_query
-                        .get(actor.0)
-                        .map(|spawned_from| {
-                            cmd.entity(actor.0).insert(Waypoint::Entity(spawned_from.0));
-                            ActionState::Executing
-                        })
-                        .ok()
                         .unwrap_or(ActionState::Failure),
                 )
             }

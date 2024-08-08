@@ -10,9 +10,12 @@ pub struct Drops(
     pub HashMap<Handle<Item>, DropRate>,
 );
 
+/// Describes the chance that certain items will be dropped
 #[derive(Debug, Clone, Reflect, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct DropRate {
+    /// The minimum amount of items that can drop
     pub min: usize,
+    /// The maximum amount of items that can drop
     pub max: usize,
     /// 1 in X chance to drop. 1 will always drop.
     pub d: usize,

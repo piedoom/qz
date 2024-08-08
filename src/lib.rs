@@ -6,13 +6,20 @@
 #![feature(inherent_associated_types)]
 #![allow(clippy::type_complexity)]
 #![allow(clippy::too_many_arguments)]
-// #![deny(missing_docs)]
+#![deny(missing_docs)]
+// #![deny(clippy::missing_docs_in_private_items)]
 
+/// All game components
 mod components;
+/// Game errors
 mod error;
+/// Plugin logic
 pub(crate) mod plugins;
+/// All game resources, such as input and factions
 mod resources;
+/// Game state
 mod states;
+/// Utility methods
 mod util;
 
 /// Contains the most common types for our application

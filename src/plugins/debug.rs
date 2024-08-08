@@ -4,6 +4,7 @@ use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 use crate::prelude::*;
 
+/// Draw debug menus and things in the world
 pub struct DebugPlugin;
 
 impl Plugin for DebugPlugin {
@@ -25,12 +26,38 @@ impl Plugin for DebugPlugin {
                     draw_destroyed,
                     draw_chests,
                     draw_active_chests,
+                    draw_grids,
                     draw_gates,
                 ),
             );
     }
 }
 
+/// Draw debug grid gizmo
+fn draw_grids(mut gizmos: Gizmos) {
+    gizmos
+        .grid_3d(
+            Vec3::new(0f32, 0f32, 0f32),
+            default(),
+            UVec3::new(128, 128, 0),
+            Vec3::splat(16f32),
+            Color::srgba(1f32, 1f32, 1f32, 0.02f32),
+        )
+        .outer_edges();
+}
+
+/// System to draw controller entities and their heading
+///
+/// # System overview
+///
+/// 1. Get all entities with a [`Collider`]] and [`Controller`]
+/// 2. Assume the collider is a ball and get its radius
+/// 3. Check if the entity is [`Destroyed`] and adjust the color accordingly
+/// 4. Draw debug lines for the controller and its heading
+///
+/// # Panics
+///
+/// If the [`Controller`] [`Collider`] is not a ball
 fn draw_controllers(
     mut gizmos: Gizmos,
     controllers: Query<(Entity, &Transform, &Collider), With<Controller>>,
@@ -53,6 +80,17 @@ fn draw_controllers(
     }
 }
 
+/// System to draw projectiles
+///
+/// # System overview
+///
+/// 1. Get all entities with a [`Collider`] and a [`Projectile`]
+/// 2. Assume the projectile is a ball and get its radius
+/// 3. Draw debug a sphere with the projectile radius
+///
+/// # Panics
+///
+/// If the projectile collider is not a ball
 fn draw_projectiles(
     mut gizmos: Gizmos,
     projectiles: Query<(&Transform, &Collider), With<Projectile>>,
@@ -67,6 +105,13 @@ fn draw_projectiles(
     }
 }
 
+/// System to draw lasers
+///
+/// # System overview
+///
+/// 1. Get all entities with a [`Collider`] and a [`Projectile`]
+/// 2. Assume the projectile is a ball and get its radius
+/// 3. Draw debug a sphere with the projectile radius
 fn draw_lasers(mut gizmos: Gizmos, weapons: Query<(&Weapon, &GlobalTransform)>) {
     for (weapon, transform) in weapons
         .iter()
@@ -89,6 +134,12 @@ fn draw_lasers(mut gizmos: Gizmos, weapons: Query<(&Weapon, &GlobalTransform)>) 
     }
 }
 
+/// System to draw health bars on entities with health and damage
+///
+/// # System overview
+///
+/// 1. Get all entities with [`Health`] and [`Damage`] components that are not [`Destroyed`]
+/// 2. Find the normalized health value and draw a rectangle with that value scaling the width
 fn draw_health_and_damage(
     mut gizmos: Gizmos,
     health_and_damage: Query<(&Transform, &Health, &Damage), Without<Destroyed>>,
@@ -103,6 +154,18 @@ fn draw_health_and_damage(
     }
 }
 
+/// System to draw structures
+///
+/// # System overview
+///
+/// 1. Get all entities marked as a [`Structure`] and retrieve optional components [`Spawner`] and[`Destroyed`]
+/// 2. Set the color based on the structure type
+/// 3. Assume the collider is a ball and get the radius
+/// 4. Draw debug with the collider size
+///
+/// # Panics
+///
+/// If the collider is not a ball
 fn draw_structures(
     mut gizmos: Gizmos,
     structures: Query<
@@ -128,7 +191,14 @@ fn draw_structures(
     }
 }
 
+/// System to draw overlays over destroyed entities
+///
+/// # System overview
+///
+/// 1. Get all entities marked as [`Destroyed`]
+/// 2. Draw an "X" over each entity
 fn draw_destroyed(mut gizmos: Gizmos, destroyed: Query<&Transform, With<Destroyed>>) {
+    /// Red color for destroyed
     const COLOR: Color = Color::srgb(1., 0., 0.);
     for transform in destroyed.iter() {
         let rect = Rect::from_center_size(transform.translation.truncate(), Vec2::splat(1.5));
@@ -142,7 +212,20 @@ fn draw_destroyed(mut gizmos: Gizmos, destroyed: Query<&Transform, With<Destroye
     }
 }
 
-fn draw_chests(mut gizmos: Gizmos, chests: Query<(&Transform, &Inventory), With<Chest>>) {
+/// System to draw chests
+///
+/// # System overview
+///
+/// 1. Get all entities marked as a [`Chest`] and get their [`Inventory`]
+/// 2. Draw the chest, and a sphere inside the chest if it's inventory isn't empty
+/// 3. Get all entities marked as a [`Chest`] that also have [`Credits`] attached
+/// 4. Draw the chest as a credits chest
+fn draw_chests(
+    mut gizmos: Gizmos,
+    chests: Query<(&Transform, &Inventory), (With<Chest>, Without<Credits>)>,
+    credits: Query<&Transform, (With<Chest>, With<Credits>, Without<Inventory>)>,
+) {
+    /// Color constant
     const COLOR: Color = Color::srgb(1., 0., 1.);
     for (transform, inventory) in chests.iter() {
         gizmos.cuboid(*transform, COLOR);
@@ -150,13 +233,30 @@ fn draw_chests(mut gizmos: Gizmos, chests: Query<(&Transform, &Inventory), With<
             gizmos.sphere(transform.translation, default(), 0.5, COLOR);
         }
     }
+
+    for transform in credits.iter() {
+        gizmos.sphere(
+            transform.translation,
+            transform.rotation,
+            0.3f32,
+            Color::srgb(1., 1., 0.),
+        );
+    }
 }
 
+/// Draw chests within range of an entity that can pick it up
+///
+/// # System overview
+///
+/// 1. Get all entities in every [`ChestsInRange`] component
+/// 2. Get the [`Transform`] for each chest entity
+/// 3. Draw a cirlce around the chest
 fn draw_active_chests(
     mut gizmos: Gizmos,
     chests_in_range: Query<&ChestsInRange>,
     transforms: Query<&Transform>,
 ) {
+    /// Purple
     const COLOR: Color = Color::srgb(1., 0., 1.);
     for chests in chests_in_range.iter() {
         for chest in chests.chests.iter() {
@@ -167,7 +267,19 @@ fn draw_active_chests(
     }
 }
 
+/// Draw world gates
+///
+/// # System overview
+///
+/// 1. Get all entities with a [`Gate`] component
+/// 2. Assume the gate is a ball
+/// 3. Draw a gate with size according to the ball radius
+///
+/// # Panics
+///
+/// If the collider is not a ball
 fn draw_gates(mut gizmos: Gizmos, gates: Query<(&Gate, &Transform, &Collider)>) {
+    /// Purple
     const COLOR: Color = Color::srgb(0.7, 0.2, 1.0);
     for (_, transform, collider) in gates.iter() {
         gizmos.sphere(

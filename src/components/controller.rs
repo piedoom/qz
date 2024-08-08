@@ -1,5 +1,3 @@
-//! Controls thusters
-
 use bevy::prelude::*;
 
 /// Thruster control

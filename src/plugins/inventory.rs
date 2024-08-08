@@ -79,10 +79,10 @@ fn manage_inventory(
 fn manage_drops(
     mut cmd: Commands,
     // Query for just-destroyed entities with a `Drop` component
-    drops: Query<(&Drops, &Transform), Added<Destroyed>>,
+    drops: Query<(&Drops, Option<&Credits>, &Transform), Added<Destroyed>>,
     items: Res<Assets<Item>>,
 ) -> Result<(), InventoryError> {
-    for (drops, transform) in drops.iter() {
+    for (drops, maybe_credits, transform) in drops.iter() {
         let mut inv = Inventory::default();
         // Filter with probabilities to find the items we will actually drop
         let mut rng = rand::thread_rng();
@@ -108,6 +108,20 @@ fn manage_drops(
                 Chest,
                 inv,
                 *transform,
+                Collider::cuboid(0.5, 0.5, 0.5),
+                CollisionLayers {
+                    memberships: PhysicsCategory::Item.into(),
+                    filters: LayerMask::NONE,
+                },
+            ));
+        }
+
+        // Spawn credits
+        if let Some(credits) = maybe_credits {
+            cmd.spawn((
+                *transform,
+                Chest,
+                *credits,
                 Collider::cuboid(0.5, 0.5, 0.5),
                 CollisionLayers {
                     memberships: PhysicsCategory::Item.into(),

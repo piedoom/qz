@@ -3,6 +3,7 @@ use bevy::prelude::*;
 
 use crate::prelude::*;
 
+/// Handles equipment running logic
 pub struct EquipmentPlugin;
 impl Plugin for EquipmentPlugin {
     fn build(&self, app: &mut App) {
@@ -18,6 +19,11 @@ impl Plugin for EquipmentPlugin {
     }
 }
 
+/// Repair damage for entities with a [`RepairBot`] equipped
+///
+/// # System overview
+///
+///
 fn handle_repairs(
     mut damages: Query<(&mut Damage, &Children), Without<Destroyed>>,
     repairs: Query<&RepairBot>,
@@ -33,6 +39,14 @@ fn handle_repairs(
     }
 }
 
+/// Generate energy and recharge batteries
+///
+/// # System overview
+///
+/// 1. Get all (parent) entities that have [`Energy`]
+/// 2. Find all generator and battery children (TODO: change to new equips tracking system)
+/// 3. Charge batteries (parent energy) with the rate specified in the generator (Note that batteries actually just determine
+///     total potential energy storage, which is what the [`Energy`] component on the parent tracks)
 fn handle_energy(
     mut energies: Query<(&mut Energy, &Children), Without<Destroyed>>,
     generators: Query<&Generator>,
@@ -58,6 +72,13 @@ fn handle_energy(
     }
 }
 
+/// Manage equip and unequip events
+///
+/// # System overview
+///
+/// 1. Loop over equip events
+/// 2. If an `Equip`, attempt to get the entity's [`Equipped`] and equip the item, managing the inventory
+/// 3. Add [`Equipment`] as child entities of the parent
 fn manage_equipment(
     mut cmd: Commands,
     mut events: EventReader<events::EquipEvent>,
@@ -119,7 +140,7 @@ fn manage_equipment(
                     let mut inventory = inventories.get_mut(*entity)?;
                     inventory.add(eq.handle(), retrieved_item.size, 1)?;
                 }
-                cmd.entity(*entity).despawn_recursive();
+                cmd.entity(*equipment).despawn_recursive();
             }
         }
     }
