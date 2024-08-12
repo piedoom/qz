@@ -10,3 +10,7 @@ pub struct Attack;
 /// Move towards a [`Targeting`] entity or position stored as a [`Waypoint`]
 #[derive(Debug, Clone, Component, ActionBuilder)]
 pub struct Persue;
+
+/// Move around idly
+#[derive(Debug, Clone, Component, ActionBuilder)]
+pub struct Idle;

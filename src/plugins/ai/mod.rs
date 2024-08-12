@@ -23,7 +23,7 @@ impl Plugin for AiPlugin {
             // Actions
             .add_systems(
                 PreUpdate,
-                (actions::attack, actions::persue).in_set(BigBrainSet::Actions),
+                (actions::attack, actions::persue, actions::idle).in_set(BigBrainSet::Actions),
             );
     }
 }
@@ -44,7 +44,7 @@ fn update_in_range(
                 &Collider::cylinder(in_range.range, 1f32),
                 transform.translation,
                 Transform::default_z().rotation,
-                SpatialQueryFilter {
+                &SpatialQueryFilter {
                     mask: LayerMask::from([PhysicsCategory::Craft, PhysicsCategory::Structure]),
                     excluded_entities: [entity].into(),
                 },

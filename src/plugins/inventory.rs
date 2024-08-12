@@ -1,6 +1,7 @@
 use crate::prelude::*;
 use avian3d::prelude::*;
 use bevy::prelude::*;
+use bevy_turborand::prelude::*;
 use events::{EquipEvent, InventoryEvent};
 use rand::Rng;
 
@@ -15,7 +16,9 @@ impl Plugin for InventoryPlugin {
                 (
                     recalculate_inventory_equipment_mass,
                     manage_inventory.pipe(handle_errors::<InventoryError>),
-                    manage_drops.pipe(handle_errors::<InventoryError>),
+                    manage_drops
+                        .pipe(handle_errors::<InventoryError>)
+                        .run_if(resource_exists::<Library>),
                     update_chests_in_range.run_if(resource_exists::<SpatialQueryPipeline>),
                 ),
             );
@@ -80,6 +83,7 @@ fn manage_drops(
     mut cmd: Commands,
     // Query for just-destroyed entities with a `Drop` component
     drops: Query<(&Drops, Option<&Credits>, &Transform), Added<Destroyed>>,
+    library: Res<Library>,
     items: Res<Assets<Item>>,
 ) -> Result<(), InventoryError> {
     for (drops, maybe_credits, transform) in drops.iter() {
@@ -107,13 +111,30 @@ fn manage_drops(
             cmd.spawn((
                 Chest,
                 inv,
-                *transform,
+                TransformBundle::from_transform(*transform),
                 Collider::cuboid(0.5, 0.5, 0.5),
                 CollisionLayers {
                     memberships: PhysicsCategory::Item.into(),
                     filters: LayerMask::NONE,
                 },
-            ));
+                RigidBody::Dynamic,
+                AngularVelocity(Vec3::new(
+                    rng.gen::<f32>() - 0.5f32,
+                    rng.gen::<f32>() - 0.5f32,
+                    rng.gen::<f32>() - 0.5f32,
+                )),
+                LinearVelocity(Vec3::new(
+                    rng.gen::<f32>() - 0.5f32,
+                    rng.gen::<f32>() - 0.5f32,
+                    0f32,
+                )),
+            ))
+            .with_children(|cmd| {
+                cmd.spawn(SceneBundle {
+                    scene: library.model("items/chest").unwrap(),
+                    ..Default::default()
+                });
+            });
         }
 
         // Spawn credits
@@ -161,7 +182,7 @@ fn update_chests_in_range(
                 &Collider::cylinder(chest_in_range.range, 1f32),
                 transform.translation,
                 Transform::default_z().rotation,
-                SpatialQueryFilter {
+                &SpatialQueryFilter {
                     mask: LayerMask::from(PhysicsCategory::Item),
                     excluded_entities: [].into(),
                 },

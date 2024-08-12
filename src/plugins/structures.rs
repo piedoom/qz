@@ -38,7 +38,7 @@ fn update_dock_in_ranges(
                 &Collider::cylinder(dock_in_range.range, 1f32),
                 dock_transform.translation,
                 Transform::default_z().rotation,
-                SpatialQueryFilter {
+                &SpatialQueryFilter {
                     mask: LayerMask::from(PhysicsCategory::Structure),
                     excluded_entities: [].into(),
                 },

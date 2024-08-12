@@ -13,7 +13,7 @@ impl Plugin for DebugPlugin {
             .add_plugins((
                 WorldInspectorPlugin::new()
                     .run_if(resource_equals::<DrawInspector>(DrawInspector(true))),
-                PhysicsDebugPlugin::default(),
+                // PhysicsDebugPlugin::default(),
             ))
             .add_systems(
                 Update,
@@ -28,7 +28,8 @@ impl Plugin for DebugPlugin {
                     draw_active_chests,
                     draw_grids,
                     draw_gates,
-                ),
+                )
+                    .run_if(resource_equals::<DrawInspector>(DrawInspector(true))),
             );
     }
 }

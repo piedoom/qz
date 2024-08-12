@@ -1,5 +1,9 @@
 use crate::prelude::*;
-use bevy::{prelude::*, utils::HashMap};
+use bevy::{
+    prelude::*,
+    render::render_resource::{AsBindGroup, ShaderRef},
+    utils::HashMap,
+};
 use bevy_asset_loader::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -23,6 +27,9 @@ pub struct Library {
     /// All [`Building`]s
     #[asset(key = "buildings", collection(typed, mapped))]
     pub buildings: HashMap<String, Handle<Building>>,
+    /// All GLTF scenes as models
+    #[asset(key = "models", collection(typed, mapped))]
+    pub models: HashMap<String, Handle<Scene>>,
 }
 
 /// Creatures are never instantiated, they are constructed via systems
@@ -32,6 +39,8 @@ pub struct Creature {
     pub name: String,
     /// Craft this creature will use
     pub craft: String,
+    /// Model this creature will use
+    pub model: String,
     /// What this creature will drop
     #[serde(default)]
     pub drops: Vec<(String, DropRate)>,
@@ -89,4 +98,18 @@ pub struct ZoneDescription {
     pub buildings: Vec<trigger::SpawnBuilding>,
     /// Gates in this zone
     pub gates: Vec<trigger::SpawnGate>,
+}
+
+/// Background material
+#[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
+pub struct BackgroundMaterial {
+    /// Camera position
+    #[uniform(101)]
+    pub position: Vec2,
+}
+
+impl Material for BackgroundMaterial {
+    fn fragment_shader() -> ShaderRef {
+        "shaders/background.wgsl".into()
+    }
 }

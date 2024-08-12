@@ -32,3 +32,11 @@ pub(crate) fn facing_scorer(
         }
     }
 }
+
+// /// 1.0 when on top of target, 0.0 when at or outside the range
+// pub(crate) fn target_in_range_scorer(
+//     mut actors: Query<(&Actor, &mut Score), With<scorers::TargetInRange>>,
+//     targeting:
+//     transforms: Query<&Transform>,
+// ) {
+// }

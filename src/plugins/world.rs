@@ -1,6 +1,8 @@
 use std::time::Duration;
 
 use avian3d::{math::TAU, prelude::*};
+use bevy::core_pipeline::bloom::BloomSettings;
+use bevy::pbr::{NotShadowCaster, NotShadowReceiver};
 use bevy::{prelude::*, utils::hashbrown::HashMap};
 use bevy_turborand::prelude::*;
 use big_brain::prelude::*;
@@ -53,7 +55,10 @@ impl Plugin for WorldPlugin {
             .register_type::<components::Weapon>()
             .register_type::<components::WeaponType>()
             .insert_resource(ClearColor(Color::BLACK))
-            .insert_resource(AmbientLight::NONE)
+            .insert_resource(AmbientLight {
+                color: Color::WHITE,
+                brightness: 200.,
+            })
             .init_resource::<Universe>()
             .add_systems(OnEnter(AppState::main()), setup)
             .add_systems(
@@ -63,6 +68,7 @@ impl Plugin for WorldPlugin {
                     manage_gates,
                     setup_health,
                     cleanup_empty_chests,
+                    update_background_shaders,
                 )
                     .run_if(in_state(AppState::main())),
             )
@@ -79,6 +85,8 @@ fn setup(
     mut cmd: Commands,
     mut factions: ResMut<Factions>,
     mut load_events: EventWriter<events::Load>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    asset_server: Res<AssetServer>,
     library: Res<Library>,
     crafts: Res<Assets<Craft>>,
 ) {
@@ -130,27 +138,55 @@ fn setup(
             },
             ..default()
         },
-    ));
+    ))
+    .with_children(|cmd| {
+        cmd.spawn(SceneBundle {
+            scene: library.model("crafts/pest").unwrap(),
+            ..default()
+        });
+
+        cmd.spawn(PointLightBundle {
+            transform: Transform::from_translation(Vec3::Z * 4f32),
+            ..Default::default()
+        });
+
+        cmd.spawn((
+            MaterialMeshBundle {
+                transform: Transform::from_translation(Vec3::Y * -8f32),
+                mesh: meshes.add(Plane3d::default().mesh().size(100.0, 100.0)),
+                material: asset_server.add(BackgroundMaterial {
+                    position: default(),
+                }),
+                ..default()
+            },
+            NotShadowCaster,
+            NotShadowReceiver,
+        ));
+    });
 
     // Spawn camera
     cmd.spawn((
         Camera3dBundle {
-            transform: Transform::from_xyz(0f32, -2f32, 36.0).looking_at(Vec3::ZERO, Dir3::Z),
-            ..default()
-        },
-        FogSettings {
-            color: Color::srgb(0.25, 0.25, 0.25),
-            falloff: FogFalloff::Linear {
-                start: 5.0,
-                end: 20.0,
+            camera: Camera {
+                hdr: true,
+                ..default()
             },
             ..default()
         },
+        BloomSettings::OLD_SCHOOL,
+        // FogSettings {
+        //     color: Color::srgb(0.25, 0.25, 0.25),
+        //     falloff: FogFalloff::Linear {
+        //         start: 5.0,
+        //         end: 20.0,
+        //     },
+        //     ..default()
+        // },
     ));
 
     cmd.trigger(trigger::GenerateSection {
-        length: 5..=7,
-        nodes_per_layer: 1..=2,
+        length: 12..=24,
+        nodes_per_layer: 1..=5,
     });
 
     load_events.send(events::Load {
@@ -184,6 +220,7 @@ fn on_spawn_creature(
         equipped,
         range,
         credits,
+        model,
     } = creatures.get(&creature).cloned().unwrap();
     let craft = library
         .crafts
@@ -221,6 +258,12 @@ fn on_spawn_creature(
         InRange::new(range),
         Name::new(name),
     ));
+    ent.with_children(|cmd| {
+        cmd.spawn((SceneBundle {
+            scene: library.model(model).unwrap(),
+            ..Default::default()
+        },));
+    });
     if let Some(spawner) = spawner {
         ent.insert((SpawnedFrom(*spawner),));
     }
@@ -242,7 +285,8 @@ fn on_spawn_creature(
             .when(
                 EvaluatingScorer::build(scorers::Facing, LinearEvaluator::new_inversed()),
                 actions::Persue,
-            ),
+            )
+            .otherwise(actions::Idle),
         // .when(
         //     scorers::Danger {
         //         radius: 3f32..=15f32,
@@ -469,7 +513,6 @@ fn on_generate_zone(
     let gates = endpoints
         .into_iter()
         .map(|(start, end)| {
-            dbg!((start, end));
             let destination = if start == *node { end } else { start };
             let t = trigger::SpawnGate {
                 translation: (rotation.forward() * 10f32).truncate(),
@@ -599,12 +642,23 @@ fn cleanup_empty_chests(
 ) {
     for (entity, inventory) in changed_chests.iter() {
         if inventory.is_empty() {
-            cmd.entity(entity).despawn();
+            cmd.entity(entity).despawn_recursive();
         }
     }
     for (entity, credits) in changed_credit_chests.iter() {
         if credits.get() == 0 {
-            cmd.entity(entity).despawn();
+            cmd.entity(entity).despawn_recursive();
+        }
+    }
+}
+
+fn update_background_shaders(
+    mut materials: ResMut<Assets<BackgroundMaterial>>,
+    camera: Query<&Transform, With<Camera>>,
+) {
+    if let Ok(camera_transform) = camera.get_single() {
+        for (_, material) in materials.iter_mut() {
+            material.position = camera_transform.translation.xy() * Vec2::new(1f32, -1f32);
         }
     }
 }

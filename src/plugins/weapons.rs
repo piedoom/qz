@@ -11,7 +11,8 @@ impl Plugin for WeaponsPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (manage_weapons, manage_projectile_collisions, manage_damage),
+            (manage_weapons, manage_projectile_collisions, manage_damage)
+                .run_if(in_state(AppState::main())),
         );
     }
 }
@@ -32,6 +33,7 @@ fn manage_weapons(
         ),
         Without<Destroyed>,
     >,
+    library: Res<Library>,
     time: Res<Time>,
     sq: SpatialQuery,
 ) {
@@ -44,7 +46,7 @@ fn manage_weapons(
                 // Get the weapon component attached
                 if let Ok(mut weapon) = weapons.get_mut(*weapon_entity) {
                     // Do stuff depending on the weapon
-                    match weapon.weapon_type {
+                    match &weapon.weapon_type {
                         WeaponType::ProjectileWeapon {
                             speed,
                             recoil,
@@ -55,16 +57,17 @@ fn manage_weapons(
                             lifetime,
                             tracking,
                             energy,
+                            projectile_model,
                         } => {
                             if weapon.wants_to_fire {
                                 // Check if weapon can fire
-                                if weapon.last_fired + Duration::from_secs_f32(recoil)
+                                if weapon.last_fired + Duration::from_secs_f32(*recoil)
                                     <= time.elapsed()
-                                    && total_energy.consume(energy as f32).is_ok()
+                                    && total_energy.consume(*energy as f32).is_ok()
                                 {
-                                    for _ in 0..shots {
+                                    for _ in 0..*shots {
                                         let mut spread_angle = 0f32;
-                                        if spread != 0f32 {
+                                        if spread != &0f32 {
                                             let half_spread = spread / 2f32;
                                             spread_angle = rand::thread_rng()
                                                 .gen_range(-half_spread..half_spread);
@@ -79,10 +82,15 @@ fn manage_weapons(
                                             }
                                         };
 
+                                        let final_angle =
+                                            (-added_angle.min(*tracking).max(-tracking)
+                                                * (f32::from(direction)))
+                                                + spread_angle;
+
                                         // Spawn a projectile
                                         cmd.spawn((
                                             LockedAxes::new().lock_translation_z(),
-                                            *transform,
+                                            TransformBundle::from_transform(*transform),
                                             RigidBody::Dynamic,
                                             Mass(1f32),
                                             LinearVelocity(
@@ -90,21 +98,19 @@ fn manage_weapons(
                                                     .rotation
                                                     .mul_quat(Quat::from_axis_angle(
                                                         Vec3::Y,
-                                                        (-added_angle.min(tracking).max(-tracking)
-                                                            * (f32::from(direction)))
-                                                            + spread_angle,
+                                                        final_angle,
                                                     ))
-                                                    .mul_vec3(-Vec3::Z * speed)
+                                                    .mul_vec3(-Vec3::Z * *speed)
                                                     + linear_velocity.0,
                                             ),
                                             Lifetime {
                                                 created: time.elapsed(),
-                                                lifetime: Duration::from_secs_f32(lifetime),
+                                                lifetime: Duration::from_secs_f32(*lifetime),
                                             },
-                                            Projectile { damage },
+                                            Projectile { damage: *damage },
                                             alliegance.clone(),
                                             Sensor,
-                                            Collider::sphere(radius),
+                                            Collider::sphere(*radius),
                                             CollisionLayers {
                                                 memberships: PhysicsCategory::Weapon.into(),
                                                 filters: LayerMask::from([
@@ -112,7 +118,19 @@ fn manage_weapons(
                                                     PhysicsCategory::Structure,
                                                 ]),
                                             },
-                                        ));
+                                        ))
+                                        .with_children(
+                                            |cmd| {
+                                                cmd.spawn(SceneBundle {
+                                                    scene: library
+                                                        .model(projectile_model.clone())
+                                                        .unwrap(),
+                                                    transform: Transform::default_z()
+                                                        .with_scale(Vec3::splat(*radius)),
+                                                    ..Default::default()
+                                                });
+                                            },
+                                        );
                                     }
                                     // Set the last fired time and set "wants to fire" to false
                                     weapon.last_fired = time.elapsed();
@@ -135,17 +153,17 @@ fn manage_weapons(
                                 let mut rotation = *transform;
                                 rotation.rotate_local_y(90f32.to_radians());
 
-                                let rot = angle_with_tracking(&weapon, *transform, tracking, 0f32);
+                                let rot = angle_with_tracking(&weapon, *transform, *tracking, 0f32);
 
                                 for hit in sq.shape_hits(
-                                    &Collider::cuboid(width, width, range),
-                                    transform.translation + (transform.down() * range * 0.5),
+                                    &Collider::cuboid(*width, *width, *range),
+                                    transform.translation + (transform.down() * *range * 0.5),
                                     default(),
                                     Dir3::new(rot.mul_vec3(transform.forward().into())).unwrap(),
-                                    range,
+                                    *range,
                                     128,
                                     true,
-                                    SpatialQueryFilter {
+                                    &SpatialQueryFilter {
                                         mask: [PhysicsCategory::Craft, PhysicsCategory::Structure]
                                             .into(),
                                         excluded_entities: [entity].into(),

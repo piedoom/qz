@@ -44,6 +44,8 @@ pub enum WeaponType {
         lifetime: f32,
         /// Energy consumed by each shot
         energy: usize,
+        /// Model for projectile
+        projectile_model: String,
     },
     /// A laser
     LaserWeapon {

@@ -32,6 +32,8 @@ pub trait LibraryExt {
     fn building(&self, name: impl AsRef<str>) -> Option<Handle<Building>>;
     /// Get an item (`*.item.ron`) by name string
     fn item(&self, name: impl AsRef<str>) -> Option<Handle<Item>>;
+    /// Get a model (`*.gltf`) by folder and name string
+    fn model(&self, name: impl AsRef<str>) -> Option<Handle<Scene>>;
 }
 
 impl<'a> LibraryExt for Res<'a, Library> {
@@ -56,6 +58,18 @@ impl<'a> LibraryExt for Res<'a, Library> {
     fn item(&self, name: impl AsRef<str>) -> Option<Handle<Item>> {
         self.items
             .get(&format!("items/{}.ron", name.as_ref()))
+            .cloned()
+    }
+
+    fn model(&self, name: impl AsRef<str>) -> Option<Handle<Scene>> {
+        // e.g., name is category_name/model_name. Convert to models/category_name/model_name/model_name.gltf
+        let (category_name, model_name) = name.as_ref().split_once('/').unwrap();
+
+        self.models
+            .get(&format!(
+                "models/{0}/{1}/{1}.gltf",
+                category_name, model_name
+            ))
             .cloned()
     }
 }

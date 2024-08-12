@@ -1,7 +1,9 @@
-use bevy::prelude::*;
-use big_brain::prelude::*;
+use std::f32::consts::TAU;
 
 use crate::prelude::*;
+use bevy::prelude::*;
+use bevy_turborand::*;
+use big_brain::prelude::*;
 
 /// System to controll attacking entities
 ///
@@ -85,6 +87,78 @@ pub(crate) fn persue(
             ActionState::Failure | ActionState::Success => {
                 // remove the waypoint
                 cmd.entity(actor.0).remove::<Waypoint>();
+                None
+            }
+            _ => None,
+        };
+        if let Some(new_state) = new_state {
+            *state = new_state;
+        }
+    }
+}
+
+pub(crate) fn idle(
+    mut cmd: Commands,
+    mut actors: Query<(&Actor, &mut ActionState), With<actions::Idle>>,
+    mut rng: ResMut<GlobalRng>,
+    waypoints: Query<&Waypoint>,
+    spawned_from: Query<&SpawnedFrom>,
+    transforms: Query<&Transform>,
+) {
+    const RADIUS_FROM: f32 = 12f32;
+    const TOLERANCE_RADIUS: f32 = 1f32;
+    for (Actor(entity), mut state) in actors.iter_mut() {
+        let new_state = match state.as_ref() {
+            ActionState::Requested => Some(ActionState::Executing),
+            ActionState::Executing => {
+                let entity_transform = *transforms.get(*entity).unwrap();
+                let maybe_waypoint_transform = waypoints
+                    .get(*entity)
+                    .and_then(|w| match w {
+                        Waypoint::Entity(e) => transforms.get(*e).copied(),
+                        Waypoint::Position(p) => Ok(Transform::from_translation(p.extend(0f32))),
+                    })
+                    .ok();
+
+                if let Some(waypoint_transform) = maybe_waypoint_transform {
+                    if entity_transform
+                        .translation
+                        .distance_squared(waypoint_transform.translation)
+                        <= TOLERANCE_RADIUS
+                    {
+                        let mut set_random_from_transform =
+                            |transform: &Transform, rng: &mut GlobalRng| {
+                                let mut pos =
+                                    Transform::default_z().with_translation(transform.translation);
+                                pos.rotate_z(rng.f32_normalized() * TAU);
+                                let point =
+                                    pos.forward().as_vec3() * rng.f32_normalized() * RADIUS_FROM;
+                                cmd.entity(*entity)
+                                    .insert(Waypoint::Position(point.truncate()));
+                            };
+                        // Find a random waypoint to move towards
+                        match spawned_from.get(*entity) {
+                            // Find a random point to set as a waypoint. If this entity was spawned
+                            // from another entity, we'll attempt to find a point close to the spawner
+                            Ok(SpawnedFrom(spawned_from)) => {
+                                let spawned_transform = transforms.get(*spawned_from).unwrap();
+                                set_random_from_transform(spawned_transform, &mut rng);
+                            }
+                            Err(_) => {
+                                // Go to a random relative position
+                                let actor_transform = Transform::default_z()
+                                    .with_translation(transforms.get(*entity).unwrap().translation);
+                                set_random_from_transform(&actor_transform, &mut rng);
+                            }
+                        }
+                    }
+                }
+                None
+            }
+            ActionState::Cancelled => Some(ActionState::Success),
+            ActionState::Failure | ActionState::Success => {
+                // remove the waypoint
+                cmd.entity(*entity).remove::<Waypoint>();
                 None
             }
             _ => None,

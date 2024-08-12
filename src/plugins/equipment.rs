@@ -20,10 +20,6 @@ impl Plugin for EquipmentPlugin {
 }
 
 /// Repair damage for entities with a [`RepairBot`] equipped
-///
-/// # System overview
-///
-///
 fn handle_repairs(
     mut damages: Query<(&mut Damage, &Children), Without<Destroyed>>,
     repairs: Query<&RepairBot>,

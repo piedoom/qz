@@ -1,6 +1,7 @@
 (
     name: "pest",
     craft: "pest",
+    model: "crafts/pest",
     range: 16.0,
     credits: (20, 80),
     drops: [

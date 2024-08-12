@@ -1,7 +1,10 @@
 use bevy::prelude::*;
-use petgraph::{graph::NodeIndex, Graph, Undirected};
+use petgraph::{graph::NodeIndex, prelude::StableGraph, Graph, Undirected};
 
 use crate::prelude::*;
+
+/// The underlying type of our universe and its connecting zones
+pub type UniverseGraph = StableGraph<Zone, (), Undirected>;
 
 /// Contains a graph of scenes. A section of scenes is generated at a time (from savepoint to boss room(s))
 #[derive(Resource, Default)]
@@ -9,15 +12,11 @@ pub struct Universe {
     /// Tracks the tail end of the `Universe` where more sections may be appended
     pub end: Vec<NodeIndex>,
     /// The graph of the levels in this `Universe`
-    pub graph: Graph<Zone, (), Undirected>,
-}
-
-impl Universe {
-    /// The type of this graph
-    pub type GRAPH = Graph<Zone, (), Undirected>;
+    pub graph: UniverseGraph,
 }
 
 /// A node within the [`Universe`]
+#[derive(Clone)]
 pub struct Zone {
     /// The name identifier of this zone
     pub name: String,

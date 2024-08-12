@@ -16,6 +16,7 @@
                     radius: 0.3,
                     lifetime: 2.0,
                     energy: 3,
+                    projectile_model: "projectiles/dart",
                 )
             )
         )

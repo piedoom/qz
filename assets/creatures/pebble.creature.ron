@@ -1,6 +1,7 @@
 (
     name: "pebble",
     craft: "pebble",
+    model: "crafts/pest",
     range: 12.0,
     credits: (50, 120),
     drops: [

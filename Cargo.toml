@@ -32,3 +32,4 @@ egui-toast = "0.14.0"
 big-brain = "0.21.1"
 petgraph = "0.6.5"
 random_word = { version = "0.4.3", features = ["en"] }
+bevy_hanabi = "0.12.2"
