@@ -1,20 +1,49 @@
 use crate::prelude::*;
-use bevy::{prelude::*, utils::HashMap};
+use bevy::prelude::*;
 use bevy_egui::*;
-use egui::{Align2, Color32, Slider, Stroke};
+use egui::{Align2, Color32};
 use egui_toast::{Toast, ToastKind, ToastOptions, Toasts};
 use events::{EquipEvent, InventoryEvent, StoreEvent};
-use petgraph::{csr::DefaultIx, graph::NodeIndex, visit::EdgeRef, Undirected};
 
 pub struct UiPlugin;
 
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (draw_hud, draw_toasts, draw_minimaps));
+        app.add_systems(Update, (draw_ui, draw_toasts, draw_minimaps, draw_hud));
     }
 }
 
-fn draw_hud(
+pub fn draw_hud(
+    mut contexts: EguiContexts,
+    healths: Query<(&Transform, &Health, &Damage)>,
+    camera: Query<(&Camera, &GlobalTransform)>,
+) {
+    if let Ok((camera, global_transform)) = camera.get_single() {
+        egui::Area::new("hud".into())
+            .anchor(Align2::LEFT_TOP, egui::Vec2::ZERO)
+            .default_size(contexts.ctx_mut().screen_rect().size())
+            .show(contexts.ctx_mut(), |ui| {
+                for (transform, health, damage) in healths.iter() {
+                    if let Some(viewport_position) =
+                        camera.world_to_viewport(global_transform, transform.translation)
+                    {
+                        ui.add(widgets::Bar {
+                            size: (32f32, 8f32).into(),
+                            range: 0f32..=**health as f32,
+                            value: **health as f32 - **damage,
+                            position: Some(egui::Pos2::new(
+                                viewport_position.x,
+                                viewport_position.y + 32f32,
+                            )),
+                            ..Default::default()
+                        });
+                    }
+                }
+            });
+    }
+}
+
+fn draw_ui(
     mut contexts: EguiContexts,
     mut events: EventWriter<EquipEvent>,
     mut inv_events: EventWriter<InventoryEvent>,
@@ -41,7 +70,7 @@ fn draw_hud(
         With<Player>,
     >,
 ) {
-    egui::SidePanel::new(egui::panel::Side::Left, "hud").show(contexts.ctx_mut(), |ui| {
+    egui::SidePanel::new(egui::panel::Side::Left, "ui").show(contexts.ctx_mut(), |ui| {
         for (
             player_entity,
             energy,
@@ -55,25 +84,25 @@ fn draw_hud(
         ) in player.iter()
         {
             ui.heading("Status");
-            ui.add(Slider::new(
-                &mut (**health as f32 - **damage),
-                0f32..=**health as f32,
-            ));
+            ui.add(widgets::Bar {
+                size: (ui.available_size().x, 24f32).into(),
+                range: 0f32..=**health as f32,
+                value: **health as f32 - **damage,
+                ..Default::default()
+            });
 
             let player_batteries = children
                 .iter_descendants(player_entity)
                 .filter_map(|child| batteries.get(child).ok());
             let capacity = player_batteries.fold(0f32, |acc, i| acc + i.capacity());
 
-            ui.add(Slider::new(&mut energy.charge().clone(), 0f32..=capacity));
-            // for child in children.iter_descendants(player_entity) {
-            //     if let Ok(energy) = energy.get(child) {
-            //         ui.add(Slider::new(
-            //             &mut energy.charge().clone(),
-            //             0f32..=energy.capacity as f32,
-            //         ));
-            //     }
-            // }
+            ui.add(widgets::Bar {
+                size: (ui.available_size().x, 24f32).into(),
+                range: 0f32..=capacity,
+                value: energy.charge(),
+                fill: Color32::LIGHT_BLUE,
+                ..Default::default()
+            });
 
             ui.heading(format!("Credits: {}", credits.get()));
 
@@ -265,7 +294,7 @@ fn draw_hud(
                                 radius,
                                 lifetime,
                                 energy,
-                                projectile_model,
+                                projectile_model: _,
                             } => {
                                 ui.heading("projectile weapon");
                                 ui.label(format!("damage: {}", damage));
@@ -354,117 +383,16 @@ fn draw_minimaps(
     universe: Res<Universe>,
     maybe_universe_position: Option<Res<UniversePosition>>,
 ) {
-    let node: Vec<_> = universe.graph.node_weights().collect();
+    let _node: Vec<_> = universe.graph.node_weights().collect();
 
     egui::Area::new("minimap".into())
         .interactable(false)
         .anchor(Align2::RIGHT_TOP, (0f32, 0f32))
         .show(contexts.ctx_mut(), |ui| {
-            ui.add(UniverseMapWidget {
-                frame: default(),
+            ui.add(widgets::UniverseMap {
                 size: egui::Vec2::new(240f32, 480f32),
                 graph: Some(&universe.graph),
                 current_position: maybe_universe_position,
             });
         });
-}
-
-#[derive(Default)]
-pub struct UniverseMapWidget<'a> {
-    pub frame: Option<egui::Frame>,
-    pub size: egui::Vec2,
-    pub graph: Option<&'a UniverseGraph>,
-    pub current_position: Option<Res<'a, UniversePosition>>,
-}
-
-impl<'a> egui::Widget for UniverseMapWidget<'a> {
-    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        let mut node_index_pos: HashMap<NodeIndex, egui::Pos2> = default();
-
-        let UniverseMapWidget {
-            frame,
-            size,
-            graph,
-            current_position,
-        } = self;
-        let frame = frame.unwrap_or(egui::Frame::none());
-        let (rect, mut response) = ui.allocate_at_least(size, egui::Sense::hover());
-        let mut painter = ui.painter().with_clip_rect(rect);
-
-        if let Some(graph) = graph {
-            node_index_pos = {
-                let nodes = graph
-                    .node_weights()
-                    .zip(graph.node_indices())
-                    .collect::<Vec<_>>();
-
-                let get_pos =
-                    |layer_index: usize, total_in_layer: usize, depth: usize| -> egui::Pos2 {
-                        let segment_width = rect.width() / total_in_layer as f32;
-                        let current_segment_center_x =
-                            (segment_width * (layer_index + 1) as f32) - (segment_width / 2f32);
-                        rect.left_top()
-                            + (current_segment_center_x, (depth as f32 + 1f32) * 48f32).into()
-                    };
-
-                nodes
-                    .chunk_by(|a, b| a.0.depth == b.0.depth)
-                    .flat_map(|layer| {
-                        layer.iter().enumerate().map(|(i, (zone, node_index))| {
-                            (*node_index, get_pos(i, layer.len(), zone.depth))
-                        })
-                    })
-                    .collect::<HashMap<_, _>>()
-            };
-
-            for (node_index, zone) in graph.node_indices().zip(graph.node_weights()) {
-                let is_current_node = current_position
-                    .as_ref()
-                    .map(|cur| cur.0 == node_index)
-                    .unwrap_or_default();
-
-                let color = if is_current_node {
-                    egui::Color32::RED
-                } else {
-                    egui::Color32::from_white_alpha(50)
-                };
-
-                // paint edges
-                let edges = graph
-                    .edges(node_index)
-                    .map(|edge| graph.edge_endpoints(edge.id()).unwrap());
-
-                for (a, b) in edges {
-                    let pos_a = node_index_pos.get(&a).unwrap();
-                    let pos_b = node_index_pos.get(&b).unwrap();
-                    painter.line_segment(
-                        [*pos_a, *pos_b],
-                        egui::Stroke::new(1f32, egui::Color32::WHITE),
-                    );
-                }
-
-                painter.circle(
-                    *node_index_pos.get(&node_index).unwrap(),
-                    if is_current_node { 8f32 } else { 4f32 },
-                    color,
-                    egui::Stroke::NONE,
-                );
-
-                // paint in the center of the segment width
-                painter.text(
-                    *node_index_pos.get(&node_index).unwrap(),
-                    egui::Align2::CENTER_CENTER,
-                    zone.name.replace(" ", "\n"),
-                    egui::FontId::monospace(if is_current_node { 12f32 } else { 8f32 }),
-                    if is_current_node {
-                        Color32::WHITE
-                    } else {
-                        Color32::from_white_alpha(50)
-                    },
-                );
-            }
-        }
-
-        response
-    }
 }

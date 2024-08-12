@@ -1,5 +1,4 @@
 use crate::prelude::*;
-use avian3d::prelude::PhysicsSet;
 use bevy::prelude::*;
 
 pub struct UtilityPlugin;

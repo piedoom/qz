@@ -1,4 +1,4 @@
-use std::ops::RangeInclusive;
+use std::ops::{RangeBounds, RangeInclusive};
 
 use avian3d::prelude::PhysicsLayer;
 use bevy::prelude::*;
@@ -132,6 +132,34 @@ impl TransformExt for Transform {
     }
 }
 
+/// Float extensions
+pub trait F32Ext<R>
+where
+    R: RangeBounds<f32>,
+{
+    /// Get this value as a normalized value between the given range
+    fn normalize(&self, in_range: R) -> f32;
+}
+
+impl<R> F32Ext<R> for f32
+where
+    R: RangeBounds<f32>,
+{
+    fn normalize(&self, in_range: R) -> f32 {
+        let end = match in_range.end_bound() {
+            std::ops::Bound::Included(x) | std::ops::Bound::Excluded(x) => x,
+            std::ops::Bound::Unbounded => &f32::INFINITY,
+        };
+        let start = match in_range.start_bound() {
+            std::ops::Bound::Included(x) | std::ops::Bound::Excluded(x) => x,
+            std::ops::Bound::Unbounded => &0f32,
+        };
+        let total_range = end - start;
+        let unclamped = (self - start) / total_range;
+        unclamped.clamp(0f32, 1f32)
+    }
+}
+
 /// Direction of a rotation, typically a rotation that is made to face another position
 pub enum RotationDirection {
     /// Clockwise rotation
@@ -173,5 +201,18 @@ where
     if let Err(e) = result {
         eprintln!("{e}");
         errors.send(e.into());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_normalize_f32() {
+        assert_eq!(0.5f32, 0.5f32.normalize(0f32..=1f32));
+        assert_eq!(0.7f32, 0.7f32.normalize(0f32..=1f32));
+        assert_eq!(0.7f32, 0.3f32.normalize(1f32..=0f32));
+        assert_eq!(0.7f32, (-0.3f32).normalize(-1f32..=0f32));
     }
 }

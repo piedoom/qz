@@ -19,6 +19,8 @@ pub(crate) mod plugins;
 mod resources;
 /// Game state
 mod states;
+/// UI widgets
+pub mod ui;
 /// Utility methods
 mod util;
 
@@ -26,5 +28,5 @@ mod util;
 pub mod prelude {
     use super::*;
     #[allow(unused_imports)]
-    pub use {components::*, error::*, plugins::*, resources::*, states::*, util::*};
+    pub use {components::*, error::*, plugins::*, resources::*, states::*, ui::*, util::*};
 }

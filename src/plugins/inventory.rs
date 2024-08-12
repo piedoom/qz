@@ -1,7 +1,6 @@
 use crate::prelude::*;
 use avian3d::prelude::*;
 use bevy::prelude::*;
-use bevy_turborand::prelude::*;
 use events::{EquipEvent, InventoryEvent};
 use rand::Rng;
 

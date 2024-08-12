@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use petgraph::{graph::NodeIndex, prelude::StableGraph, Graph, Undirected};
+use petgraph::{graph::NodeIndex, prelude::StableGraph, Undirected};
 
 use crate::prelude::*;
 
