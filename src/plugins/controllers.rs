@@ -14,7 +14,8 @@ impl Plugin for ControllersPlugin {
             (
                 apply_controller_movement,
                 apply_craft_physics.after(apply_controller_movement),
-            ),
+            )
+                .run_if(in_state(AppState::main())),
         );
     }
 }

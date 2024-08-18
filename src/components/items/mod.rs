@@ -1,5 +1,3 @@
-/// Money handling
-mod credits;
 /// Dropping items on destruction
 mod drop;
 /// Energy management
@@ -13,7 +11,7 @@ mod repair;
 /// Weapons
 mod weapon;
 
-pub use {credits::*, drop::*, energy::*, equipment::*, inventory::*, repair::*, weapon::*};
+pub use {drop::*, energy::*, equipment::*, inventory::*, repair::*, weapon::*};
 
 use {
     bevy::prelude::*,
@@ -36,7 +34,8 @@ pub struct Item {
 }
 
 /// Item(s) in the world. Uses an inventory for item management
-#[derive(Component, Reflect, Clone)]
+#[derive(Component, Reflect, Clone, Serialize, Deserialize)]
+#[reflect(Component, Serialize, Deserialize)]
 pub struct Chest;
 
 /// Tracks the chests in range for a particular entity so that the inventory of chests can become available

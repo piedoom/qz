@@ -2,13 +2,17 @@
 
 use std::time::Duration;
 
-use bevy::{prelude::*, utils::HashMap};
+use bevy::{
+    prelude::*,
+    utils::{HashMap, HashSet},
+};
 use serde::{Deserialize, Serialize};
 
 use crate::prelude::*;
 
 /// A permanent, usually non-moving thing in the game such as a station or a gate
-#[derive(Component, Reflect)]
+#[derive(Component, Reflect, Serialize, Deserialize, Debug, Clone, Copy)]
+#[reflect(Component, Serialize, Deserialize)]
 pub struct Structure;
 
 /// Added when a craft is docked, and removed when undocked
@@ -27,6 +31,7 @@ pub struct DockInRange {
 
 /// Building that spawns creatures
 #[derive(Clone, Debug, Component, Reflect, Serialize, Deserialize)]
+#[reflect(Component, Serialize, Deserialize)]
 pub struct Spawner {
     /// Names of the creature asset that will spawn, paired with the `d` likliehood it will be spawned that tick
     pub spawns: Vec<(String, usize)>,
@@ -40,56 +45,20 @@ pub struct Spawner {
 }
 
 /// Used to track the maximum created from our spawner
-#[derive(Component, Reflect)]
+#[derive(Component, Reflect, Serialize, Deserialize)]
+#[reflect(Component, Serialize, Deserialize)]
 pub struct SpawnedFrom(pub Entity);
 
 /// Can dock at this. Maps a docked entity to its constraint entity
-#[derive(Component, Reflect, Default, Deref, DerefMut)]
-pub struct Dockings(pub HashMap<Entity, Entity>);
+#[derive(Component, Reflect, Default, Deref, DerefMut, Serialize, Deserialize, Clone)]
+#[reflect(Component, Serialize, Deserialize)]
+pub struct Dockings(#[reflect(skip_serializing)] pub HashMap<Entity, Entity>);
 
 /// Marks a building as a store that can be traded with, if docked
 #[derive(Component, Default, Reflect)]
 pub struct Store {
-    /// Items that are bought and sold at this station
-    pub items: HashMap<Handle<Item>, SaleOptions>,
-}
-
-/// Describes whether an item is listed for sale or for buying
-/// Options for fine-tuning sales
-#[derive(Default, Reflect, Serialize, Deserialize, Debug, Clone, Copy)]
-pub struct SaleOptions {
-    /// Amount to sell at
-    pub sell: SaleOption,
-    /// Amount to buy at
-    pub buy: SaleOption,
-}
-
-impl SaleOptions {}
-/// Options for buying and selling
-#[derive(Default, Reflect, Serialize, Deserialize, Debug, Clone, Copy)]
-pub enum SaleOption {
-    /// Not for sale/purchase
-    #[default]
-    None,
-    /// Scale the base price determined on the item level
-    Scaled(f32),
-    /// Set a specific price
-    Absolute(usize),
-}
-
-impl SaleOption {
-    /// Returns `false` if `None`
-    #[inline(always)]
-    pub fn enabled(&self) -> bool {
-        !matches!(self, Self::None)
-    }
-
-    /// Get the adjusted value of this item given its base value
-    pub fn value(&self, base_value: usize) -> Option<usize> {
-        match self {
-            SaleOption::None => None,
-            SaleOption::Scaled(scalar) => Some((base_value as f32 * scalar) as usize),
-            SaleOption::Absolute(value) => Some(*value),
-        }
-    }
+    /// Items for sale
+    pub items: HashSet<Handle<Item>>,
+    /// Difference between buy and sell price, as a percentage
+    pub margin: f32,
 }

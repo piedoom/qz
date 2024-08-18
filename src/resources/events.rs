@@ -92,8 +92,6 @@ pub enum StoreEvent {
         item: Handle<Item>,
         /// Quantity to be bought by the buyer entity
         quantity: usize,
-        /// Price per unit
-        price: usize,
     },
     /// Sell an item
     Sell {
@@ -105,8 +103,6 @@ pub enum StoreEvent {
         item: Handle<Item>,
         /// Quantity to be sold by the seller entity
         quantity: usize,
-        /// Price per unit
-        price: usize,
     },
 }
 
@@ -131,14 +127,7 @@ pub mod triggers {
 }
 
 /// Save the universe
-#[derive(Event)]
-pub struct Save;
-
-/// Load a [`Universe`] node, or generate a new one and load it
-#[derive(Event)]
-pub struct Load {
-    /// If None is specified, the load will attempt from the universe position
-    pub node: Option<NodeIndex>,
-    /// If specified, the player will be moved to the gate matching this node on entry to the zone
-    pub from_node: Option<NodeIndex>,
+#[derive(Event, Clone, Copy)]
+pub struct Save {
+    pub node: NodeIndex,
 }

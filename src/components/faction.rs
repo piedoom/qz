@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 /// Marks entities as allies or enemies of one another
 #[derive(Component, Clone, Reflect, Default, Serialize, Deserialize)]
+#[reflect(Component, Serialize, Deserialize)]
 pub struct Alliegance {
     /// The faction of the entity
     pub faction: Faction,

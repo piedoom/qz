@@ -15,7 +15,7 @@ impl Plugin for InputPlugin {
             .add_systems(
                 Update,
                 (
-                    apply_player_input,
+                    apply_player_input.run_if(in_state(AppState::main())),
                     apply_app_input,
                     update_player_bindings.run_if(resource_exists::<Settings>),
                 ),

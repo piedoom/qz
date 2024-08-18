@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use petgraph::{graph::NodeIndex, prelude::StableGraph, Undirected};
+use serde::{Deserialize, Serialize};
 
 use crate::prelude::*;
 
@@ -15,34 +16,16 @@ pub struct Universe {
     pub graph: UniverseGraph,
 }
 
-/// A node within the [`Universe`]
-#[derive(Clone)]
-pub struct Zone {
-    /// The name identifier of this zone
-    pub name: String,
-    /// A `Zone` may have an associated scene, if it was already built. If this value is `None`,
-    /// a new scene must be generated for this `Zone`.
-    pub scene: Option<Handle<ZoneDescription>>,
-    /// The depth of this `Zone` in the [`Universe`]. This can help dictate difficulty
-    pub depth: usize,
-}
-
-impl Zone {
-    /// Create a new zone with a depth. This is generally used while generating a new [`Universe` section]
-    pub fn new(depth: usize) -> Self {
-        Self {
-            name: (0..2)
-                .map(|_| random_word::gen(random_word::Lang::En).to_string())
-                .reduce(|acc, e| acc + " " + &e)
-                .unwrap(),
-            depth,
-            scene: None,
-        }
-    }
+#[derive(Serialize, Deserialize, Default)]
+pub struct UniverseSerialized {
+    /// Tracks the tail end of the `Universe` where more sections may be appended
+    pub end: Vec<NodeIndex>,
+    /// The graph of the levels in this `Universe`
+    pub graph: StableGraph<ZoneSerialized, (), Undirected>,
 }
 
 /// Current position in the universe
-#[derive(Resource, Default)]
+#[derive(Resource, Default, Serialize, Deserialize, Clone, Copy)]
 pub struct UniversePosition(pub NodeIndex);
 
 impl UniversePosition {

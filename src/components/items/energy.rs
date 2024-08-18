@@ -27,7 +27,8 @@ impl Battery {
 
 /// Available energy attached to the top level entity. Things (such as [`Generator`]s) can
 /// contribute to the `Energy`, which is consumed by other things like [`Weapon`]s.
-#[derive(Clone, Debug, Component, Reflect, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Component, Reflect, Serialize, Deserialize, Default, Copy)]
+#[reflect(Component, Serialize, Deserialize)]
 pub struct Energy(f32);
 
 impl Energy {

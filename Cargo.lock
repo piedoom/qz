@@ -723,6 +723,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_etcetera"
+version = "0.1.0"
+source = "git+https://github.com/piedoom/bevy_etcetera#13aaf4936faa051ba01e91871a4fd13f1dbf291b"
+dependencies = [
+ "bevy",
+ "etcetera",
+]
+
+[[package]]
 name = "bevy_gilrs"
 version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1167,6 +1176,7 @@ dependencies = [
  "bevy_asset_loader",
  "bevy_common_assets",
  "bevy_egui",
+ "bevy_etcetera",
  "bevy_hanabi",
  "bevy_turborand",
  "big-brain",
@@ -1177,6 +1187,7 @@ dependencies = [
  "petgraph",
  "rand",
  "random_word",
+ "ron",
  "serde",
  "thiserror",
 ]
@@ -1375,6 +1386,9 @@ name = "bimap"
 version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "230c5f1ca6a325a32553f8640d31ac9b49f2411e901e427570154868b46da4f7"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "bindgen"
@@ -2098,6 +2112,17 @@ name = "error-code"
 version = "3.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a0474425d51df81997e2f90a21591180b38eccf27292d755f3e30750225c175b"
+
+[[package]]
+name = "etcetera"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "136d1b5283a1ab77bd9257427ffd09d8667ced0570b6f938942bc7568ed5b943"
+dependencies = [
+ "cfg-if",
+ "home",
+ "windows-sys 0.48.0",
+]
 
 [[package]]
 name = "euclid"

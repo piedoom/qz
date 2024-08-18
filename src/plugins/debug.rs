@@ -149,7 +149,7 @@ fn draw_health_and_damage(
         gizmos.rect(
             transform.translation,
             default(),
-            Vec2::new((**health as f32 - **damage) / **health as f32, 0.2),
+            Vec2::new((health.get() as f32 - **damage) / health.get() as f32, 0.2),
             Color::srgb(0.0, 1.0, 0.0),
         );
     }

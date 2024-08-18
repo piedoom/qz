@@ -19,7 +19,8 @@ impl Plugin for StructuresPlugin {
                     update_dock_in_ranges,
                     update_dockings,
                     handle_store_events.pipe(handle_errors::<StoreError>),
-                ),
+                )
+                    .run_if(in_state(AppState::main())),
             );
     }
 }
@@ -70,7 +71,12 @@ fn update_dockings(
             DockEvent::Undock { to_undock } => {
                 if let Ok(dock) = docked.get(*to_undock) {
                     cmd.entity(*to_undock).remove::<Docked>();
-                    if let Some(joint) = dockings.get_mut(**dock).unwrap().remove(to_undock) {
+                    if let Some(joint) = dockings
+                        .get_mut(**dock)
+                        .map(|mut docking| docking.remove(to_undock))
+                        .ok()
+                        .flatten()
+                    {
                         cmd.entity(joint).despawn_recursive();
                     }
                 }
@@ -81,8 +87,8 @@ fn update_dockings(
 
 fn handle_store_events(
     mut events: EventReader<StoreEvent>,
-    mut stores: Query<(&mut Inventory, &mut Credits), With<Store>>,
-    mut inventories: Query<(&mut Inventory, &mut Credits), Without<Store>>,
+    mut credits: Query<&mut Credits>,
+    mut inventories: Query<&mut Inventory>,
     items: Res<Assets<Item>>,
 ) -> Result<(), StoreError> {
     for event in events.read() {
@@ -92,49 +98,58 @@ fn handle_store_events(
                 store: store_entity,
                 item,
                 quantity,
-                price,
             }
             | StoreEvent::Sell {
                 seller: patron,
                 store: store_entity,
                 item,
                 quantity,
-                price,
             } => {
-                let (store_inventory, store_credits) = stores.get_mut(*store_entity)?;
-                let (inventory, credits) = inventories.get_mut(*patron)?;
-                let (mut from_inventory, mut to_inventory, mut from_credits, mut to_credits) = {
-                    match matches!(event, StoreEvent::Buy { .. }) {
-                        true => (store_inventory, inventory, credits, store_credits),
-                        false => (inventory, store_inventory, store_credits, credits),
+                let is_buy_event = matches!(event, StoreEvent::Buy { .. });
+                dbg!("a");
+                let [patron_credits, store_credits] =
+                    credits.get_many_mut([*patron, *store_entity])?;
+                dbg!("b");
+                let mut inventory = inventories.get_mut(*patron)?;
+                let retrieved_item = items.get(item).unwrap();
+                let (mut from_credits, mut to_credits) = {
+                    match is_buy_event {
+                        // Moving into the player inventory. ensure enough space
+                        true => {
+                            if inventory.space_remaining() >= retrieved_item.size * quantity {
+                                (patron_credits, store_credits)
+                            } else {
+                                return Err(InventoryError::NoSpaceLeft {
+                                    overage: (retrieved_item.size * quantity)
+                                        - inventory.space_remaining(),
+                                }
+                                .into());
+                            }
+                        }
+                        // Moving out of the player inventory. ensure items exist
+                        false => {
+                            if inventory.count(item) >= *quantity {
+                                (store_credits, patron_credits)
+                            } else {
+                                return Err(StoreError::NotEnoughItems);
+                            }
+                        }
                     }
                 };
 
-                let retrieved_item = items
+                let Item { size, value, .. } = items
                     .get(item)
                     .expect("item should exist with given handle");
-
-                // Ensure there is enough space left
-                if to_inventory.space_remaining() >= retrieved_item.size * quantity {
-                    // Ensure the inventory has the item available for transfer of the specified quantity
-                    if from_inventory.quantity(item) < *quantity {
-                        return Err(StoreError::NotEnoughItems);
-                    }
-                    // Ensure there is enough credits to transfer
-                    let total_cost = price * quantity;
-                    match from_credits.get() >= total_cost {
-                        true => {
-                            // Commit inventory and credit transfer
-                            from_credits.transfer(&mut to_credits, total_cost)?;
-                            from_inventory.transfer(
-                                item.clone(),
-                                &mut to_inventory,
-                                *quantity,
-                                &items,
-                            )?;
-                        }
-                        false => return Err(StoreError::NotEnoughCredits),
-                    }
+                let total_cost = value * quantity;
+                if from_credits.get() < total_cost {
+                    return Err(StoreError::NotEnoughCredits);
+                }
+                // Commit inventory and credit transfer
+                from_credits.transfer(&mut to_credits, total_cost)?;
+                if is_buy_event {
+                    inventory.add(item.clone(), *size, *quantity)?;
+                } else {
+                    inventory.remove(item, *size, *quantity)?;
                 }
             }
         }

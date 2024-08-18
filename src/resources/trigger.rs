@@ -53,11 +53,7 @@ pub struct GenerateSection {
 
 /// Generate a new zone (level associated with a [`Universe`] [`NodeIndex`])
 #[derive(Event)]
-pub struct GenerateZone {
+pub struct SpawnZone {
     /// Associated [`NodeIndex`] for this zone
     pub node: NodeIndex,
 }
-
-/// Despawn all entities associated with the active zone
-#[derive(Event)]
-pub struct DespawnZone;

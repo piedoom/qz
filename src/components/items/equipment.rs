@@ -1,10 +1,15 @@
+use std::ops::{Add, AddAssign};
+
 use bevy::{
     ecs::{
         component::{ComponentHooks, StorageType},
         world::DeferredWorld,
     },
     prelude::*,
-    utils::{hashbrown::HashMap, HashSet},
+    utils::{
+        hashbrown::{hash_map::Iter, HashMap},
+        HashSet,
+    },
 };
 use serde::{Deserialize, Serialize};
 
@@ -23,6 +28,11 @@ pub struct Equipped {
 }
 
 impl Equipped {
+    /// Iterate through all equipment
+    pub fn iter(&self) -> Iter<EquipmentTypeId, HashSet<Entity>> {
+        self.equipped.iter()
+    }
+
     /// Available space left
     pub fn available(&self, equipment_type: &EquipmentTypeId) -> usize {
         let max = self.slots.get(equipment_type).cloned().unwrap_or_default();
@@ -50,6 +60,7 @@ impl Equipped {
 
 /// Build an `Equipped` with starting items
 #[derive(Debug, Component, Default, Clone, Reflect, Serialize, Deserialize)]
+#[reflect(Component, Serialize, Deserialize)]
 pub struct EquippedBuilder {
     /// Names of items to equip
     pub equipped: Vec<String>,
@@ -73,7 +84,9 @@ pub enum EquipmentType {
 }
 
 /// Defines an `EquipmentType` without associated information. This should be kept in sync with `EquipmentType`.
-#[derive(Copy, Clone, Debug, Reflect, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(
+    Copy, Clone, Debug, Reflect, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord,
+)]
 pub enum EquipmentTypeId {
     /// A weapon that can fire
     Weapon,
@@ -170,8 +183,15 @@ impl Component for Equipment {
                         let mut cmd = world.commands();
                         let mut entity = cmd.entity(entity);
 
-                        // Insert the item
-                        entity.insert(retrieved_item);
+                        // Insert the item and some other necessary stuff
+                        let item_name = retrieved_item.name.clone();
+                        entity.insert((
+                            retrieved_item,
+                            TransformBundle::default(),
+                            Heat::default(),
+                            Name::new(item_name),
+                            equipment.0,
+                        ));
 
                         match equipment_type {
                             EquipmentType::Weapon(weapon) => entity.insert(weapon.clone()),
@@ -215,3 +235,39 @@ impl Component for Equipment {
             });
     }
 }
+
+/// Attached to certain equipment. When overheated, equipment is disabled until fully cooled.
+/// Heat is not passively cooled and will continue to stay at its current score unless modified.
+#[derive(Default, Component, Reflect)]
+pub struct Heat(f32);
+
+impl Heat {
+    /// Get heat value
+    pub fn get(&self) -> f32 {
+        self.0
+    }
+}
+
+impl From<f32> for Heat {
+    fn from(value: f32) -> Self {
+        Self(value)
+    }
+}
+
+impl Add<f32> for Heat {
+    type Output = Self;
+
+    fn add(self, rhs: f32) -> Self::Output {
+        Heat((self.0 + rhs).clamp(0f32, 1f32))
+    }
+}
+
+impl AddAssign<f32> for Heat {
+    fn add_assign(&mut self, rhs: f32) {
+        self.0 = (self.0 + rhs).clamp(0f32, 1f32);
+    }
+}
+
+/// Marker struct that disables equipment and is removed when [`Heat`] is 0.
+#[derive(Component, Reflect)]
+pub struct Overheated;

@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 /// Total credits belonging to an entity
 #[derive(Component, Reflect, Serialize, Deserialize, Default, Clone, Copy, Debug)]
+#[reflect(Component, Serialize, Deserialize)]
 pub struct Credits(usize);
 
 impl Credits {

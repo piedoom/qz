@@ -56,6 +56,10 @@ pub struct Creature {
     pub credits: (usize, usize),
 }
 
+fn default_margin() -> Option<f32> {
+    Some(0.3f32)
+}
+
 /// Buildings are never instantiated, they are constructed via systems
 #[derive(Debug, Clone, Component, Reflect, Asset, Serialize, Deserialize)]
 pub struct Building {
@@ -76,6 +80,7 @@ pub struct Building {
     #[serde(default)]
     pub inventory: Vec<(String, usize)>,
     /// Inventory capacity
+    #[serde(default = "usize::max_value")]
     pub inventory_space: usize,
     /// Equipped items on spawn
     #[serde(default)]
@@ -83,21 +88,15 @@ pub struct Building {
     /// If spawned from a spawner, denote that here
     #[serde(default)]
     pub spawner: Option<Spawner>,
-    /// If a store, denote that here along with sale options
+    /// If a store, potential items and their chance of being available
     #[serde(default)]
-    pub store: Option<Vec<(String, SaleOptions)>>,
+    pub store: Option<Vec<(String, Chance)>>,
+    /// Percentage amount to deduct when buying
+    #[serde(default = "default_margin")]
+    pub store_margin: Option<f32>,
     /// Starting credits, if any
     #[serde(default)]
     pub credits: Option<usize>,
-}
-
-/// A serializable setup for the zone that will be spawned
-#[derive(Resource, Default, Asset, Reflect, Serialize, Deserialize)]
-pub struct ZoneDescription {
-    /// Buildings in this zone
-    pub buildings: Vec<trigger::SpawnBuilding>,
-    /// Gates in this zone
-    pub gates: Vec<trigger::SpawnGate>,
 }
 
 /// Background material
@@ -112,4 +111,50 @@ impl Material for BackgroundMaterial {
     fn fragment_shader() -> ShaderRef {
         "shaders/background.wgsl".into()
     }
+}
+
+pub struct Zone {
+    /// The name identifier of this zone
+    pub name: String,
+    /// The depth of this `Zone` in the [`Universe`]. This can help dictate difficulty
+    pub depth: usize,
+    pub scene: Option<Handle<DynamicScene>>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ZoneSerialized {
+    /// The name identifier of this zone
+    pub name: String,
+    /// The depth of this `Zone` in the [`Universe`]. This can help dictate difficulty
+    pub depth: usize,
+    /// Local path of the associated serialized dynamic scene
+    pub scene: Option<String>,
+}
+
+impl Zone {
+    pub fn from_depth(depth: usize) -> Self {
+        Self {
+            name: (0..2)
+                .map(|_| random_word::gen(random_word::Lang::En).to_string())
+                .reduce(|acc, e| acc + " " + &e)
+                .unwrap(),
+            depth,
+            scene: None,
+        }
+    }
+}
+
+impl Model {
+    pub fn new(handle: Handle<Scene>) -> Self {
+        Self(handle.path().unwrap().clone())
+    }
+}
+
+/// A game save
+#[derive(Asset, TypePath, Serialize, Deserialize)]
+pub struct Save {
+    pub name: String,
+    pub universe: UniverseSerialized,
+    pub factions: Factions,
+    pub universe_position: UniversePosition,
 }

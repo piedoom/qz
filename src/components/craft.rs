@@ -4,16 +4,41 @@ use serde::{Deserialize, Serialize};
 
 use crate::prelude::*;
 /// Marker component for a destroyed entity
-#[derive(Component, Reflect)]
+#[derive(Component, Reflect, Serialize, Deserialize, Clone, Copy)]
+#[reflect(Component, Serialize, Deserialize)]
 pub struct Destroyed;
 
 /// Total alotted hitpoints
-#[derive(Component, Reflect, Deref, DerefMut)]
-pub struct Health(pub usize);
+#[derive(Component, Reflect, Serialize, Deserialize, Clone, Copy)]
+#[reflect(Component, Serialize, Deserialize)]
+pub struct Health {
+    base: usize,
+    #[serde(skip)]
+    bonus: usize,
+}
+
+impl Health {
+    pub fn get(&self) -> usize {
+        self.base + self.bonus
+    }
+
+    pub fn new(base: usize) -> Self {
+        Self { base, bonus: 0 }
+    }
+
+    pub fn add_bonus(&mut self, bonus: usize) {
+        self.bonus += bonus;
+    }
+
+    pub fn remove_bonus(&mut self, bonus_to_remove: usize) {
+        self.bonus = self.bonus.checked_sub(bonus_to_remove).unwrap_or_default();
+    }
+}
 
 /// Damage inflicted. Used in tandem with [`Health`]. Damage is a float instead of an integer, as
 /// repairs may repair fractional amounts
-#[derive(Component, Reflect, Deref, DerefMut, Default)]
+#[derive(Component, Reflect, Clone, Copy, Deref, DerefMut, Default, Serialize, Deserialize)]
+#[reflect(Component, Serialize, Deserialize)]
 pub struct Damage(f32);
 
 // #[derive(Component, Reflect, Deref, DerefMut, Default)]
@@ -22,12 +47,6 @@ pub struct Damage(f32);
 // #[derive(Component, Reflect, Deref, DerefMut, Default)]
 // pub struct EnergyStore(f32);
 
-impl From<usize> for Health {
-    fn from(value: usize) -> Self {
-        Self(value)
-    }
-}
-
 impl From<f32> for Damage {
     fn from(value: f32) -> Self {
         Self(value)
@@ -35,7 +54,8 @@ impl From<f32> for Damage {
 }
 
 /// Moveable thing
-#[derive(Debug, Clone, Component, Reflect, Asset, Serialize, Deserialize)]
+#[derive(Debug, Reflect, Clone, Component, Asset, Serialize, Deserialize)]
+#[reflect(Component, Serialize, Deserialize)]
 pub struct Craft {
     /// Name
     pub name: String,
@@ -58,6 +78,10 @@ pub struct Craft {
     /// Craft value
     pub value: usize,
 }
+
+#[derive(Debug, Reflect, Clone, Component, Asset, Serialize, Deserialize)]
+#[reflect(Component, Serialize, Deserialize)]
+pub struct CraftName(pub String);
 
 /// Common shape for a moving craft, such as for AI or the player
 #[derive(Bundle)]
@@ -125,7 +149,7 @@ impl Default for CraftBundle {
             equipped: EquippedBuilder::default(),
             collision_layers: CollisionLayers {
                 memberships: LayerMask::from([PhysicsCategory::Craft]),
-                filters: LayerMask::from([PhysicsCategory::Craft, PhysicsCategory::Weapon]),
+                filters: LayerMask::from([PhysicsCategory::Weapon]),
             },
             credits: default(),
             transform: Transform::default(),

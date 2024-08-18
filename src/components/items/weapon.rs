@@ -9,6 +9,9 @@ pub struct Weapon {
     /// If `true`, this weapon will attempt to fire. This is not reset to false implicitly
     #[serde(skip)]
     pub wants_to_fire: bool,
+    /// If `Some`, this weapon is already firing. The inner data is the timestamp that the weapon began firing
+    #[serde(skip)]
+    pub firing: Option<Duration>,
     #[serde(skip)]
     /// The optional target coordinate of this weapon, used for mouse aiming and tracking
     pub target: Option<Vec3>,
@@ -60,6 +63,14 @@ pub enum WeaponType {
         range: f32,
         /// Width of the laser
         width: f32,
+        /// Energy for this laser to be activated
+        activation_energy: f32,
+        /// Time to overheat
+        heat_per_second: f32,
+        /// Recovery per second
+        cooling_per_second: f32,
+        /// Beam color
+        color: (f32, f32, f32),
     },
 }
 

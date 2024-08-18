@@ -61,6 +61,7 @@ impl Plugin for ClientInitPlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<AppState>()
             .insert_resource(Gravity(Vec3::ZERO))
+            .insert_resource(bevy_etcetera::Directories::new("org", "doomy", "qz"))
             .init_resource::<Factions>()
             .add_event::<GameError>();
     }

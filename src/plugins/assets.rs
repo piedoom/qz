@@ -21,16 +21,16 @@ impl Plugin for AssetsPlugin {
                 "battery.ron",
                 "armor.ron",
             ]),
-            RonAssetPlugin::<ZoneDescription>::new(&["zd.ron"]),
             RonAssetPlugin::<Creature>::new(&["creature.ron"]),
             RonAssetPlugin::<Craft>::new(&["craft.ron"]),
             RonAssetPlugin::<Building>::new(&["building.ron"]),
+            RonAssetPlugin::<Save>::new(&["save.ron"]),
         ))
         // Continue to the main game state once everything is loaded in, so
         // we can be sure all assets are loaded first
         .add_loading_state(
             LoadingState::new(AppState::preloading())
-                .continue_to_state(AppState::main())
+                .continue_to_state(AppState::menu())
                 .with_dynamic_assets_file::<StandardDynamicAssetCollection>("default.assets.ron")
                 .load_collection::<Library>(),
         );

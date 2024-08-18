@@ -1,3 +1,7 @@
+- new enum that has handle or asset id
+- always serialize to asset id
+- create custom asset loader that converts between handle type on deserialize (with dependencies?)
+
 # qz
 
 ## Program structure

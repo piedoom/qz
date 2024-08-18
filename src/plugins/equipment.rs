@@ -12,9 +12,11 @@ impl Plugin for EquipmentPlugin {
             (
                 handle_repairs,
                 handle_energy,
+                manage_overheating,
                 manage_equipped_builders.run_if(resource_exists::<Library>),
                 manage_equipment.pipe(handle_errors::<EquipmentError>),
-            ),
+            )
+                .run_if(in_state(AppState::main())),
         );
     }
 }
@@ -105,7 +107,7 @@ fn manage_equipment(
                     if *transfer_from_inventory {
                         // Remove item from inventory
                         let mut inventory = inventories.get_mut(*parent_entity)?;
-                        inventory.remove(item.clone(), retrieved_item.size, 1)?;
+                        inventory.remove(item, retrieved_item.size, 1)?;
                     }
                     // Add equip as a child
                     let equipment_entity = cmd.spawn(()).id();
@@ -176,5 +178,20 @@ fn manage_equipped_builders(
         }
 
         cmd.entity(parent_entity).remove::<EquippedBuilder>();
+    }
+}
+
+fn manage_overheating(
+    mut cmd: Commands,
+    heats: Query<(Entity, &Heat, Option<&Overheated>), Changed<Heat>>,
+) {
+    for (equipment_entity, heat, maybe_overheated) in heats.iter() {
+        if heat.get() == 1f32 {
+            // Overheated, add the component
+            cmd.entity(equipment_entity).insert(Overheated);
+        } else if heat.get() == 0f32 && maybe_overheated.is_some() {
+            // No longer overheated. Remove the overheated component
+            cmd.entity(equipment_entity).remove::<Overheated>();
+        }
     }
 }

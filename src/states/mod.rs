@@ -1,4 +1,7 @@
-use bevy::prelude::*;
+use bevy::{asset::AssetPath, prelude::*};
+use petgraph::graph::NodeIndex;
+
+// use crate::prelude::UniverseDescription;
 
 /// Controls the state of our application
 #[derive(Default, States, Debug, Clone, Eq)]
@@ -6,12 +9,29 @@ pub enum AppState {
     /// The starting state of the application where all necessary files and
     /// assets are preloaded before moving on to the loading stage
     #[default]
-    Preloading,
-    /// The state where specific assets should be prepared. For example, loading
-    /// a level makes sense to put in this state.
-    Loading,
+    Preload,
+
+    Menu,
+
     /// The main application state
     Main,
+
+    /// New game
+    New,
+
+    /// Load an entire new universe
+    LoadGame(AssetPath<'static>),
+
+    /// Save the current universe
+    SaveGame,
+
+    TransitionZone {
+        load: NodeIndex,
+    },
+    LoadZone {
+        load: NodeIndex,
+        previous: Option<NodeIndex>,
+    },
 }
 
 // Discard data so we can use the gamestate to hold relevant information
@@ -31,16 +51,39 @@ impl AppState {
     /// AppState::Preloading { .. }
     #[inline(always)]
     pub fn preloading() -> Self {
-        Self::Preloading
+        Self::Preload
+    }
+
+    #[inline(always)]
+    pub fn menu() -> Self {
+        Self::Menu
     }
     /// AppState::Loading { .. }
     #[inline(always)]
-    pub fn loading() -> Self {
-        Self::Loading
+    pub fn load_game() -> Self {
+        Self::LoadGame(Default::default())
     }
     /// AppState::Main { .. }
     #[inline(always)]
     pub fn main() -> Self {
         Self::Main
+    }
+    /// AppState::SaveGame { .. }
+    #[inline(always)]
+    pub fn save_game() -> Self {
+        Self::SaveGame
+    }
+    /// Save the current zone and load the next
+    #[inline(always)]
+    pub fn transition_zone() -> Self {
+        Self::TransitionZone { load: default() }
+    }
+
+    #[inline(always)]
+    pub fn load_zone() -> Self {
+        Self::LoadZone {
+            load: default(),
+            previous: default(),
+        }
     }
 }

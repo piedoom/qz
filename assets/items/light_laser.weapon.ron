@@ -7,11 +7,15 @@
         Weapon(
             Weapon(
                 weapon_type: LaserWeapon (
-                    range: 5.0,
-                    width: 0.2,
-                    tracking: 0.2,
-                    damage_per_second: 10.0,
-                    energy_per_second: 10.0,
+                    range: 4.0,
+                    width: 0.05,
+                    tracking: 0.5,
+                    damage_per_second: 30.0,
+                    energy_per_second: 5.0,
+                    heat_per_second: 0.3,
+                    cooling_per_second: 0.3,
+                    activation_energy: 3.0,
+                    color: (20.0,20.0,100.0),
                 )
             )
         )

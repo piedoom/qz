@@ -7,17 +7,22 @@ use serde::{Deserialize, Serialize};
 use crate::prelude::*;
 
 /// only `items` count towards the `max_size`. Equipment does not affect this.
-#[derive(Debug, Clone, Component, Reflect, Serialize, Deserialize)]
+#[derive(Debug, Clone, Component, Reflect)]
 pub struct Inventory {
     /// Maximum size of the inventory, determined by the craft (so it is not serialized)
-    #[serde(default)]
     capacity: usize,
     /// Spaces out of the capacity that are occupied by items
-    #[serde(default)]
     space_occupied: usize,
     /// Items and their amount in the inventory
-    #[serde(skip)]
     items: HashMap<Handle<Item>, usize>,
+}
+
+/// Build an `Equipped` with starting items
+#[derive(Debug, Component, Default, Clone, Reflect, Serialize, Deserialize)]
+#[reflect(Component, Serialize, Deserialize)]
+pub struct InventoryBuilder {
+    pub items: Vec<(String, usize)>,
+    pub capacity: usize,
 }
 
 impl Default for Inventory {
@@ -118,12 +123,12 @@ impl Inventory {
     /// Try to remove an item from the inventory
     pub fn remove(
         &mut self,
-        item: Handle<Item>,
+        item: &Handle<Item>,
         size: usize,
         amount: usize,
     ) -> Result<(), InventoryError> {
         // Retrieve the item from storage
-        match self.items.get_mut(&item) {
+        match self.items.get_mut(item) {
             Some(existing_amount) => {
                 // ensure the existing amount is more than the desired amount, if specified. In unspecified, we remove everything
                 if amount > *existing_amount {
@@ -141,7 +146,7 @@ impl Inventory {
 
                 // If the existing amount is now 0, remove the item from the inventory entirely
                 if new_amount == 0 {
-                    self.items.remove(&item);
+                    self.items.remove(item);
                 }
 
                 Ok(())
@@ -169,8 +174,8 @@ impl Inventory {
     }
 
     /// Count the number of items in the inventory
-    pub fn count(&self, item: Handle<Item>) -> usize {
-        self.items.get(&item).cloned().unwrap_or_default()
+    pub fn count(&self, item: &Handle<Item>) -> usize {
+        self.items.get(item).cloned().unwrap_or_default()
     }
 
     /// Move items of a type to another inventory
@@ -183,7 +188,7 @@ impl Inventory {
     ) -> Result<usize, InventoryError> {
         let retrieved_item = items.get(&item).ok_or(InventoryError::ItemNotFound)?;
         inventory.add(item.clone(), retrieved_item.size, amount)?;
-        self.remove(item.clone(), retrieved_item.size, amount)?;
+        self.remove(&item, retrieved_item.size, amount)?;
         Ok(amount)
     }
 

@@ -15,6 +15,14 @@
         path: "buildings",
     ),
     "models": Files (
-        paths: ["models/crafts/pest/pest.gltf#Scene0", "models/items/chest/chest.gltf#Scene0", "models/projectiles/dart/dart.gltf#Scene0"],
+        paths: [
+            "models/crafts/pest/pest.gltf#Scene0",
+            "models/items/chest/chest.gltf#Scene0",
+            "models/projectiles/dart/dart.gltf#Scene0",
+            "models/structures/gate/gate.gltf#Scene0",
+        ],
+    ),
+    "saves": Folder (
+        path: "saves",
     ),
 })

@@ -6,7 +6,7 @@
 #![feature(inherent_associated_types)]
 #![allow(clippy::type_complexity)]
 #![allow(clippy::too_many_arguments)]
-#![deny(missing_docs)]
+// #![deny(missing_docs)]
 // #![deny(clippy::missing_docs_in_private_items)]
 
 /// All game components

@@ -204,6 +204,9 @@ where
     }
 }
 
+/// Numerator over denominator
+pub type Chance = (usize, usize);
+
 #[cfg(test)]
 mod tests {
     use super::*;

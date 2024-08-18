@@ -4,6 +4,8 @@ mod ai;
 mod controller;
 /// Moveable things
 mod craft;
+/// Money handling
+mod credits;
 /// Factions
 mod faction;
 /// Item components, inventory, equipment, and credits
@@ -16,8 +18,7 @@ mod structure;
 mod utility;
 /// World level and scenery components
 mod world;
-
 pub use {
-    ai::*, controller::Controller, craft::*, faction::*, items::*, player::*, structure::*,
-    utility::*, world::*,
+    ai::*, controller::Controller, craft::*, credits::*, faction::*, items::*, player::*,
+    structure::*, utility::*, world::*,
 };

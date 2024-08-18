@@ -13,10 +13,11 @@ impl Plugin for InventoryPlugin {
             .add_systems(
                 Update,
                 (
-                    recalculate_inventory_equipment_mass,
-                    manage_inventory.pipe(handle_errors::<InventoryError>),
-                    manage_drops
-                        .pipe(handle_errors::<InventoryError>)
+                    (
+                        recalculate_inventory_equipment_mass,
+                        manage_inventory.pipe(handle_errors::<InventoryError>),
+                        manage_drops.pipe(handle_errors::<InventoryError>),
+                    )
                         .run_if(resource_exists::<Library>),
                     update_chests_in_range.run_if(resource_exists::<SpatialQueryPipeline>),
                 ),
@@ -59,7 +60,7 @@ fn manage_inventory(
                 let retrieved_item = items.get(item).ok_or(InventoryError::ItemNotFound)?;
                 let transform = transforms.get(*entity)?;
 
-                inventory.remove(item.clone(), retrieved_item.size, *amount)?;
+                inventory.remove(item, retrieved_item.size, *amount)?;
 
                 // Spawn tossed stuff in a chest
                 cmd.spawn((

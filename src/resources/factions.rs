@@ -1,8 +1,9 @@
 use crate::prelude::*;
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 
 /// All registered factions in the game. Factions can be registered and given an ID, which are then referenced with this resource.
-#[derive(Resource, Default)]
+#[derive(Resource, Default, Serialize, Deserialize, Clone)]
 pub struct Factions(bimap::BiHashMap<String, Faction>);
 
 impl Factions {

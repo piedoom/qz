@@ -5,8 +5,6 @@
     health: 100,
     size: 2.0,
     drops: [],
-    inventory: [],
-    inventory_space: 1000,
     spawner: (
         maximum: 4,
         tick: 3.0,

@@ -1,8 +1,10 @@
 use bevy::prelude::*;
 use petgraph::graph::NodeIndex;
+use serde::{Deserialize, Serialize};
 
 /// References a compliment gate, or none if uninitialized
-#[derive(Component, Default, Reflect, Deref, DerefMut, Clone)]
+#[derive(Component, Default, Reflect, Deref, DerefMut, Clone, Serialize, Deserialize)]
+#[reflect(Component, Serialize, Deserialize)]
 pub struct Gate(NodeIndex);
 
 impl Gate {

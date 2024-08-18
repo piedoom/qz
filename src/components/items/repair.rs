@@ -34,9 +34,9 @@ impl Component for Armor {
                 let armor_health = armor.health;
                 if let Some(mut health) = world.get_mut::<Health>(parent.get()) {
                     if add {
-                        health.0 += armor_health
+                        health.add_bonus(armor_health);
                     } else {
-                        health.0 -= armor_health
+                        health.remove_bonus(armor_health);
                     }
                 }
             }
