@@ -1,0 +1,12 @@
+(
+    name: "barge",
+    value: 12900,
+    speed: 3.0,
+    rotation: 40.0,
+    brake: 80.0,
+    acceleration: 100.0,
+    health: 48,
+    size: 2.0,
+    mass: 24.0,
+    capacity: 128,
+)

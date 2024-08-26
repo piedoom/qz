@@ -43,8 +43,10 @@ pub enum WeaponType {
         damage: usize,
         /// Radius of the projectile to be fired
         radius: f32,
-        /// Lifetime in seconds
+        /// Maximum lifetime in seconds
         lifetime: f32,
+        /// Maximum distance that this projectile can travel in units
+        distance: f32,
         /// Energy consumed by each shot
         energy: usize,
         /// Model for projectile

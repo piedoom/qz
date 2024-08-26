@@ -128,19 +128,14 @@ fn manage_drops(
                     rng.gen::<f32>() - 0.5f32,
                     0f32,
                 )),
-            ))
-            .with_children(|cmd| {
-                cmd.spawn(SceneBundle {
-                    scene: library.model("items/chest").unwrap(),
-                    ..Default::default()
-                });
-            });
+                Model::new(library.model("items/chest").unwrap()).with_offset(-Vec3::Y * 2f32),
+            ));
         }
 
         // Spawn credits
         if let Some(credits) = maybe_credits {
             cmd.spawn((
-                *transform,
+                TransformBundle::from_transform(*transform),
                 Chest,
                 *credits,
                 Collider::cuboid(0.5, 0.5, 0.5),
@@ -148,6 +143,12 @@ fn manage_drops(
                     memberships: PhysicsCategory::Item.into(),
                     filters: LayerMask::NONE,
                 },
+                LinearVelocity(Vec3::new(
+                    rng.gen::<f32>() - 0.5f32,
+                    rng.gen::<f32>() - 0.5f32,
+                    0f32,
+                )),
+                Model::new(library.model("items/credits").unwrap()).with_offset(-Vec3::Y * 2f32),
             ));
         }
     }

@@ -37,31 +37,34 @@ pub(super) fn on_spawn_building(
         .clone();
 
     let mut entity = cmd.spawn((
-        Name::new(name.clone()),
-        Persistent,
-        Structure,
-        Health::new(health),
-        Damage::default(),
-        RigidBody::Dynamic,
-        Mass(mass),
-        Collider::sphere(size * 0.5),
-        alliegance.clone(),
-        Inventory::with_capacity(inventory_space)
-            .with_many_from_str(inventory.into_iter().collect(), &items, &library)
-            .unwrap(),
-        equipped,
-        Drops(
-            drops
-                .into_iter()
-                .filter_map(|(drop, rate)| library.item(drop).map(|x| (x, rate)))
-                .collect(),
+        (
+            Name::new(name.clone()),
+            Persistent,
+            Structure,
+            Health::new(health),
+            Damage::default(),
+            RigidBody::Dynamic,
+            Mass(mass),
+            Collider::sphere(size * 0.5),
+            alliegance.clone(),
+            Inventory::with_capacity(inventory_space)
+                .with_many_from_str(inventory.into_iter().collect(), &items, &library)
+                .unwrap(),
+            equipped,
+            Drops(
+                drops
+                    .into_iter()
+                    .filter_map(|(drop, rate)| library.item(drop).map(|x| (x, rate)))
+                    .collect(),
+            ),
+            CollisionLayers {
+                memberships: LayerMask::from([PhysicsCategory::Structure]),
+                filters: LayerMask::from([PhysicsCategory::Weapon, PhysicsCategory::Structure]),
+            },
+            LockedAxes::ROTATION_LOCKED,
+            Transform::z_from_parts(translation, rotation),
         ),
-        CollisionLayers {
-            memberships: LayerMask::from([PhysicsCategory::Structure]),
-            filters: LayerMask::from([PhysicsCategory::Weapon, PhysicsCategory::Structure]),
-        },
-        LockedAxes::ROTATION_LOCKED,
-        Transform::z_from_parts(translation, rotation),
+        (GlobalTransform::IDENTITY,),
     ));
 
     if let Some(spawner) = spawner {
@@ -91,6 +94,7 @@ pub(super) fn on_spawn_building(
                 margin,
             },
             Dockings::default(),
+            Model::new(library.model("structures/station").unwrap()).with_offset(-Vec3::Y * 5f32),
         ));
     }
 }

@@ -144,12 +144,6 @@ impl Zone {
     }
 }
 
-impl Model {
-    pub fn new(handle: Handle<Scene>) -> Self {
-        Self(handle.path().unwrap().clone())
-    }
-}
-
 /// A game save
 #[derive(Asset, TypePath, Serialize, Deserialize)]
 pub struct Save {

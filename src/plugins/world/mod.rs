@@ -409,7 +409,7 @@ fn add_models(
                     .models
                     .iter()
                     .find_map(|x| {
-                        if x.1.path() == Some(&model.0) {
+                        if x.1.path() == Some(model.path()) {
                             Some(x.1)
                         } else {
                             None
@@ -417,6 +417,7 @@ fn add_models(
                     })
                     .unwrap()
                     .clone(),
+                transform: Transform::from_translation(model.offset()),
                 ..Default::default()
             },));
         });

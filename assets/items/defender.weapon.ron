@@ -1,0 +1,25 @@
+(
+    name: "defender",
+    value: 700,
+    mass: 12.0,
+    size: 22,
+    equipment: Some(
+        Weapon(
+            Weapon(
+                weapon_type: ProjectileWeapon (
+                    tracking: 1.5,
+                    speed: 3.0,
+                    recoil: 3.2,
+                    spread: 2.2,
+                    shots: 8,
+                    damage: 5,
+                    radius: 0.2,
+                    lifetime: 0.5,
+                    distance: 4.0,
+                    energy: 4,
+                    projectile_model: "projectiles/dart",
+                )
+            )
+        )
+    )
+)

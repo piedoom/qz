@@ -1,0 +1,11 @@
+(
+    name: "solid battery",
+    value: 450,
+    mass: 10.0,
+    size: 5,
+    equipment: Some(
+        Battery(
+            Battery(16.0),
+        ),
+    ),
+)

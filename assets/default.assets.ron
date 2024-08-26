@@ -18,8 +18,10 @@
         paths: [
             "models/crafts/pest/pest.gltf#Scene0",
             "models/items/chest/chest.gltf#Scene0",
+            "models/items/credits/credits.gltf#Scene0",
             "models/projectiles/dart/dart.gltf#Scene0",
             "models/structures/gate/gate.gltf#Scene0",
+            "models/structures/station/station.gltf#Scene0",
         ],
     ),
     "saves": Folder (

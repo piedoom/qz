@@ -1,0 +1,15 @@
+(
+    name: "barge",
+    craft: "barge",
+    model: "crafts/pest",
+    range: 12.0,
+    credits: (250, 500),
+    drops: [
+        ("scrap_metal.item", (min: 2, max: 30, d: 3)),
+        ("defender.weapon", (min: 1, max: 1, d: 19)),
+    ],
+    equipped: (
+        equipped: ["defender.weapon", "minireactor.generator", "ion.battery", "ion.battery", "ion.battery", "ion.battery"],
+        slots: [(Weapon, 1), (Generator, 1), (Battery, 4)],
+    ),
+)

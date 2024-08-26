@@ -1,4 +1,4 @@
-use crate::prelude::{Gate, UniverseGraph, UniversePosition};
+use crate::prelude::{Gate, Universe, UniverseGraph, UniversePosition};
 use avian3d::prelude::Collider;
 use bevy::{
     prelude::{GlobalTransform, Query, Res},
@@ -19,6 +19,8 @@ pub struct ZoneMap<'a> {
     pub gate_query: &'a Query<'a, 'a, (&'static GlobalTransform, &'static Gate)>,
     /// Center position
     pub world_center: Vec2,
+    /// Universe
+    pub universe_graph: &'a UniverseGraph,
 }
 
 impl<'a> Widget for ZoneMap<'a> {
@@ -29,6 +31,7 @@ impl<'a> Widget for ZoneMap<'a> {
             size,
             world_center,
             gate_query,
+            universe_graph,
         } = self;
 
         let world_center = world_center * Vec2::new(1f32, -1f32);
@@ -51,15 +54,24 @@ impl<'a> Widget for ZoneMap<'a> {
         painter.line_segment([bb.left_center(), bb.right_center()], stroke);
 
         for (transform, _) in query.iter() {
-            painter.circle(world_to_px(transform), 4f32, Color32::GREEN, Stroke::NONE);
+            painter.circle(world_to_px(transform), 2f32, Color32::GREEN, Stroke::NONE);
         }
 
-        for (transform, _) in gate_query.iter() {
-            painter.circle(world_to_px(transform), 4f32, Color32::BLUE, Stroke::NONE);
+        for (transform, gate) in gate_query.iter() {
+            let pos = world_to_px(transform);
+            painter.circle(pos, 4f32, Color32::BLUE, Stroke::NONE);
+
+            let gate_zone = universe_graph.node_weight(gate.destination()).unwrap();
+            painter.text(
+                pos,
+                Align2::CENTER_TOP,
+                gate_zone.name.replace(" ", "\n"),
+                FontId::monospace(8f32),
+                Color32::WHITE,
+            );
         }
 
         response
-        // todo!()
     }
 }
 
@@ -143,17 +155,19 @@ impl<'a> Widget for UniverseMap<'a> {
                 );
 
                 // paint in the center of the segment width
-                painter.text(
-                    *node_index_pos.get(&node_index).unwrap(),
-                    Align2::CENTER_CENTER,
-                    zone.name.replace(" ", "\n"),
-                    FontId::monospace(if is_current_node { 12f32 } else { 8f32 }),
-                    if is_current_node {
-                        Color32::WHITE
-                    } else {
-                        Color32::from_white_alpha(50)
-                    },
-                );
+                if zone.scene.is_some() || is_current_node {
+                    painter.text(
+                        *node_index_pos.get(&node_index).unwrap(),
+                        Align2::CENTER_CENTER,
+                        zone.name.replace(" ", "\n"),
+                        FontId::monospace(if is_current_node { 12f32 } else { 8f32 }),
+                        if is_current_node {
+                            Color32::WHITE
+                        } else {
+                            Color32::from_white_alpha(50)
+                        },
+                    );
+                }
             }
         }
 

@@ -7,7 +7,8 @@ impl Plugin for UtilityPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (manage_lifetimes, follow_camera).run_if(in_state(AppState::main())),
+            (manage_lifetimes, follow_camera, manage_distance_lifetimes)
+                .run_if(in_state(AppState::main())),
         );
     }
 }
@@ -15,6 +16,20 @@ impl Plugin for UtilityPlugin {
 fn manage_lifetimes(mut cmd: Commands, lifetimes: Query<(Entity, &Lifetime)>, time: Res<Time>) {
     for (entity, lifetime) in lifetimes.iter() {
         if time.elapsed() >= lifetime.created + lifetime.lifetime {
+            cmd.entity(entity).despawn_recursive();
+        }
+    }
+}
+
+fn manage_distance_lifetimes(
+    mut cmd: Commands,
+    distance_lifetimes: Query<(Entity, &Transform, &DistanceLifetime)>,
+) {
+    for (entity, transform, distance_lifetime) in distance_lifetimes.iter() {
+        let distance_squared = distance_lifetime
+            .created
+            .distance_squared(transform.translation);
+        if distance_squared >= distance_lifetime.length.powi(2) {
             cmd.entity(entity).despawn_recursive();
         }
     }

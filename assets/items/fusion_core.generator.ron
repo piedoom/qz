@@ -1,0 +1,13 @@
+(
+    name: "fusion core",
+    value: 3500,
+    mass: 28.0,
+    size: 12,
+    equipment: Some(
+        Generator(
+            Generator(
+                recharge_rate: 3.2,
+            ),
+        ),
+    ),
+)

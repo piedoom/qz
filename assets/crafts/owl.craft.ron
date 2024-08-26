@@ -1,0 +1,12 @@
+(
+    name: "owl",
+    value: 22000,
+    speed: 9.0,
+    rotation: 340.0,
+    brake: 400.0,
+    acceleration: 400.0,
+    health: 18,
+    size: 1.2,
+    mass: 22.0,
+    capacity: 90,
+)

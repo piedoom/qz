@@ -25,6 +25,6 @@ pub(super) fn on_spawn_gate(
         Gate::new(*destination),
         GlobalTransform::IDENTITY,
         Transform::z_from_parts(translation, &0f32),
-        Model::new(library.model("structures/gate").unwrap()),
+        Model::new(library.model("structures/gate").unwrap()).with_offset(Vec3::Y * -2f32),
     ));
 }

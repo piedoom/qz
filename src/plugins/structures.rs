@@ -63,8 +63,10 @@ fn update_dockings(
                 cmd.entity(*to_dock).insert(Docked(*dock));
                 let joint = cmd
                     .spawn((DistanceJoint::new(*to_dock, *dock)
-                        .with_limits(0.0, 3.0)
-                        .with_compliance(0.05),))
+                        .with_limits(0.0, 0.5)
+                        .with_linear_velocity_damping(0.05)
+                        .with_angular_velocity_damping(0.05)
+                        .with_compliance(0.005),))
                     .id();
                 dockings.get_mut(*dock).unwrap().insert(*to_dock, joint);
             }

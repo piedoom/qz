@@ -8,6 +8,6 @@
     spawner: (
         maximum: 4,
         tick: 3.0,
-        spawns: [("pest", 2), ("pebble", 4)],
+        spawns: [("pest", 2), ("pebble", 4), ("barge", 4), ("owl", 4)],
     ),
 )

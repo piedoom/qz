@@ -14,7 +14,8 @@
                     shots: 2,
                     damage: 10,
                     radius: 0.1,
-                    lifetime: 0.3,
+                    lifetime: 1.0,
+                    distance: 3.0,
                     energy: 7,
                     projectile_model: "projectiles/dart",
                 )

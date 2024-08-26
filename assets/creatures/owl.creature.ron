@@ -1,0 +1,14 @@
+(
+    name: "owl",
+    craft: "owl",
+    model: "crafts/pest",
+    range: 16.0,
+    credits: (300, 700),
+    drops: [
+        ("scrap_metal.item", (min: 2, max: 30, d: 3)),
+    ],
+    equipped: (
+        equipped: ["arc_laser.weapon", "fusion_core.generator", "solid.battery"],
+        slots: [(Weapon, 1), (Generator, 1), (Battery, 1)],
+    ),
+)

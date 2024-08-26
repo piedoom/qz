@@ -67,6 +67,7 @@ fn manage_weapons(
                             tracking,
                             energy,
                             projectile_model,
+                            distance,
                         } => {
                             if weapon.wants_to_fire {
                                 // Check if weapon can fire
@@ -115,6 +116,10 @@ fn manage_weapons(
                                             Lifetime {
                                                 created: time.elapsed(),
                                                 lifetime: Duration::from_secs_f32(*lifetime),
+                                            },
+                                            DistanceLifetime {
+                                                created: transform.translation,
+                                                length: *distance,
                                             },
                                             Projectile { damage: *damage },
                                             alliegance.clone(),

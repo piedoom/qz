@@ -295,6 +295,7 @@ pub(super) fn draw_ui(
                                     lifetime,
                                     energy,
                                     projectile_model: _,
+                                    distance,
                                 } => {
                                     ui.heading("projectile weapon");
                                     ui.label(format!("damage: {}", damage));
@@ -302,6 +303,7 @@ pub(super) fn draw_ui(
                                     ui.label(format!("recoil: {}s", recoil));
                                     ui.label(format!("shots: {}", shots));
                                     ui.label(format!("spread: {}", spread));
+                                    ui.label(format!("distance: {}", distance));
                                     ui.label(format!("lifetime: {}", lifetime));
                                     ui.label(format!("speed: {}", speed));
                                     ui.label(format!("size: {}", radius * 2f32));
@@ -377,6 +379,7 @@ pub(super) fn draw_minimaps(
                     collider_query: &query,
                     world_center: (translation.x, translation.y).into(),
                     gate_query: &gate_query,
+                    universe_graph: &universe.graph,
                 });
 
                 ui.add(widgets::UniverseMap {

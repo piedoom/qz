@@ -42,16 +42,24 @@ impl Plugin for StatePlugin {
 }
 
 fn enter_game_save(
+    mut cmd: Commands,
     mut next_state: ResMut<NextState<AppState>>,
+    save_game_name: Option<Res<SaveGameName>>,
     universe: Res<Universe>,
     universe_position: Res<UniversePosition>,
     directories: Res<Directories>,
-    save_game_name: Res<SaveGameName>,
     factions: Res<Factions>,
 ) {
     let mut universe_serialized = UniverseSerialized {
         end: universe.end.clone(),
         graph: default(),
+    };
+    let save_game_name = if let Some(save_game_name) = save_game_name {
+        save_game_name.clone()
+    } else {
+        let save_name = SaveGameName::new();
+        cmd.insert_resource(save_name.clone());
+        save_name
     };
 
     for (_, _) in universe
@@ -482,32 +490,3 @@ fn move_to_gate(
         }
     }
 }
-
-// // If all players are destroyed, players will be sent to the first slice (0)
-// fn manage_loss_state(
-//     mut cmd: Commands,
-//     mut inventories: Query<&mut Inventory>,
-//     mut cursor: ResMut<WorldCursor>,
-//     in_slices: Query<(Entity, &Slice), Without<Player>>,
-//     not_destroyed: Query<Entity, (Without<Destroyed>, With<Player>)>,
-//     destroyed: Query<Entity, (Added<Destroyed>, With<Player>)>,
-// ) {
-//     // If all players are destroyed
-//     if !destroyed.is_empty() && not_destroyed.is_empty() {
-//         // Set every player to slice 0 and use inserts because its simpler than mutating here lol xd
-//         for entity in destroyed.iter() {
-//             cmd.entity(entity)
-//                 .remove::<Destroyed>()
-//                 .insert(Damage::default())
-//                 .insert(Slice(0));
-//             let mut inv = inventories.get_mut(entity).unwrap(); // All players should have an inventory
-//             inv.drain();
-//         }
-
-//         // Despawn everything else and reset the world cursor
-//         for (entity, _) in in_slices.iter().filter(|(_, s)| s.0 != 0) {
-//             cmd.entity(entity).despawn_recursive();
-//         }
-//         ***cursor = 1;
-//     }
-// }

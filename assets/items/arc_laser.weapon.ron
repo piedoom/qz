@@ -1,0 +1,23 @@
+(
+    name: "arc laser",
+    value: 11200,
+    mass: 13.0,
+    size: 15,
+    equipment: Some(
+        Weapon(
+            Weapon(
+                weapon_type: LaserWeapon (
+                    range: 2.0,
+                    width: 0.25,
+                    tracking: 0.1,
+                    damage_per_second: 50.0,
+                    energy_per_second: 8.0,
+                    heat_per_second: 2.0,
+                    cooling_per_second: 0.8,
+                    activation_energy: 1.0,
+                    color: (100.0,10.0,5.0),
+                )
+            )
+        )
+    )
+)

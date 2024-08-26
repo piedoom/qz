@@ -725,7 +725,8 @@ dependencies = [
 [[package]]
 name = "bevy_etcetera"
 version = "0.1.0"
-source = "git+https://github.com/piedoom/bevy_etcetera#13aaf4936faa051ba01e91871a4fd13f1dbf291b"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f2a08d169f5664e51f8d62a94045ffe883b6cd35e694afc14bb4e64e69a223f4"
 dependencies = [
  "bevy",
  "etcetera",

@@ -2,7 +2,7 @@
 (
     name: "store",
     credits: 100000,
-    mass: 100.0,
+    mass: 10000.0,
     health: 1000,
     size: 2.0,
     equipped: (
