@@ -14,8 +14,10 @@ pub(super) fn draw_ui(
     mut store_events: EventWriter<events::StoreEvent>,
     mut next_state: ResMut<NextState<AppState>>,
     mut current_save: ResMut<SavePath>,
+
     state: Res<State<AppState>>,
     equipment: Query<&Equipment>,
+    item_handles: Query<&Handle<Item>>,
     items: Res<Assets<Item>>,
     inventories: Query<&Inventory>,
     batteries: Query<&Battery>,
@@ -66,12 +68,22 @@ pub(super) fn draw_ui(
                         ..Default::default()
                     });
 
-                    // Energy
-                    // TODO: use hooks for this instead of calculating every time
-                    let player_batteries = children
-                        .iter_descendants(player_entity)
-                        .filter_map(|child| batteries.get(child).ok());
-                    let capacity = player_batteries.fold(0f32, |acc, i| acc + i.capacity());
+                    // Energy bar
+                    ui.add({
+                        // TODO: use hooks for this instead of calculating every time
+                        let player_batteries = children
+                            .iter_descendants(player_entity)
+                            .filter_map(|child| batteries.get(child).ok());
+                        let capacity = player_batteries.fold(0f32, |acc, i| acc + i.capacity());
+                        widgets::Bar {
+                            size: bar_size.into(),
+                            range: 0f32..=capacity,
+                            value: energy.charge(),
+                            fill: Color32::BLUE,
+                            vertical: true,
+                            ..Default::default()
+                        }
+                    });
 
                     // Show equipped items
                     ui.horizontal(|ui| {
@@ -82,18 +94,21 @@ pub(super) fn draw_ui(
                         //     .equipped_grouped
                         //     .chunk_by(|(a, _), (b, _)| a == b)
                         // {}
-                        for equipment_group in equipped.iter() {
-                            // TODO
+                        for (equipment_type_id, entities) in equipped.iter() {
+                            ui.add(widgets::Slot {
+                                equipment_type_id: *equipment_type_id,
+                                size: egui::Vec2::new(100f32, size.y),
+                                equipped: entities
+                                    .iter()
+                                    .map(|entity| {
+                                        let equip = item_handles.get(*entity).unwrap();
+                                        let item = items.get(equip).unwrap();
+                                        (item, *entity)
+                                    })
+                                    .collect(),
+                                capacity: equipped.capacity(equipment_type_id),
+                            });
                         }
-                    });
-
-                    ui.add(widgets::Bar {
-                        size: bar_size.into(),
-                        range: 0f32..=capacity,
-                        value: energy.charge(),
-                        fill: Color32::BLUE,
-                        vertical: true,
-                        ..Default::default()
                     });
                 });
             });
@@ -112,8 +127,7 @@ pub(super) fn draw_ui(
             ) in player.iter()
             {
                 if ui.button("save").clicked() {
-                    let path: std::path::PathBuf =
-                        current_save.0.clone().unwrap_or_else(|| "save_game".into());
+                    let path: std::path::PathBuf = current_save.0.clone().unwrap();
                     *current_save = SavePath(Some(path.clone()));
                     next_state.set(AppState::SaveGame { save_path: path });
                 }

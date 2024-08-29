@@ -103,7 +103,7 @@ fn manage_equipment(
                 // Test that there is a slot available
                 let retrieved_item = items.get(item).unwrap().clone();
                 let id = retrieved_item.equipment.unwrap().id();
-                if equipped.available(&id) != 0 {
+                if equipped.slots_remaining(&id) != 0 {
                     if *transfer_from_inventory {
                         // Remove item from inventory
                         let mut inventory = inventories.get_mut(*parent_entity)?;

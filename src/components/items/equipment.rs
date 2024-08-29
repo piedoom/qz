@@ -33,8 +33,13 @@ impl Equipped {
         self.equipped.iter()
     }
 
+    /// Total space
+    pub fn capacity(&self, equipment_type: &EquipmentTypeId) -> usize {
+        self.slots.get(equipment_type).cloned().unwrap_or_default()
+    }
+
     /// Available space left
-    pub fn available(&self, equipment_type: &EquipmentTypeId) -> usize {
+    pub fn slots_remaining(&self, equipment_type: &EquipmentTypeId) -> usize {
         let max = self.slots.get(equipment_type).cloned().unwrap_or_default();
         let current = self
             .equipped
