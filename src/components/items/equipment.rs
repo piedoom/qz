@@ -17,7 +17,7 @@ use crate::prelude::*;
 
 /// Equipment needs to use the parent/child tree. This allows
 /// for multiple equips of the same type to be used at once
-#[derive(Debug, Default, Component, Clone, Reflect, Serialize, Deserialize)]
+#[derive(Debug, Component, Default, Clone, Reflect, Serialize, Deserialize)]
 pub struct Equipped {
     /// A map of [`EquipmentTypeId`]s to equipped entities. This is updated via hooks and is hopefully never invalid.
     /// This value is essentially a cache.

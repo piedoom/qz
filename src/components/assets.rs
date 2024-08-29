@@ -24,6 +24,7 @@ impl Plugin for AssetsPlugin {
             RonAssetPlugin::<Creature>::new(&["creature.ron"]),
             RonAssetPlugin::<Craft>::new(&["craft.ron"]),
             RonAssetPlugin::<Building>::new(&["building.ron"]),
+            // RonAssetPlugin::<Save>::new(&["save.ron"]),
         ))
         // Continue to the main game state once everything is loaded in, so
         // we can be sure all assets are loaded first

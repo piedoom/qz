@@ -158,14 +158,20 @@ fn manage_drops(
 // Recalculate the craft mass when it is changed
 fn recalculate_inventory_equipment_mass(
     mut query: Query<
-        (&mut Mass, &Inventory, &Equipped, &Craft),
+        (&mut Mass, Option<&Inventory>, Option<&Equipped>, &Craft),
         Or<(Changed<Inventory>, Changed<Equipped>)>,
     >,
     item_assets: Res<Assets<Item>>,
     items: Query<&Equipment>,
 ) {
     for (mut mass, inventory, equipped, craft) in query.iter_mut() {
-        **mass = inventory.mass(&item_assets) + equipped.mass(&item_assets, &items) + craft.mass;
+        **mass = craft.mass;
+        if let Some(inventory) = inventory {
+            **mass += inventory.mass(&item_assets);
+        }
+        if let Some(equipped) = equipped {
+            **mass += equipped.mass(&item_assets, &items);
+        }
     }
 }
 

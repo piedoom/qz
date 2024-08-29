@@ -1,7 +1,15 @@
-use std::ops::{RangeBounds, RangeInclusive};
+use std::{
+    ops::{RangeBounds, RangeInclusive},
+    path::PathBuf,
+};
 
 use avian3d::prelude::PhysicsLayer;
-use bevy::prelude::*;
+use bevy::{
+    asset::AssetPath,
+    ecs::{component::ComponentId, world::DeferredWorld},
+    prelude::*,
+};
+use bevy_etcetera::Directories;
 
 use crate::{prelude::*, resources::Library};
 
@@ -19,58 +27,6 @@ impl RangeInclusiveExt<f32> for RangeInclusive<f32> {
     fn lerp(&self, at: f32) -> f32 {
         let delta = *self.end() - *self.start();
         (*self.start() + (at * delta)).clamp(0.0, 1.0)
-    }
-}
-
-/// Extention methods for asset ergonomics
-pub trait LibraryExt {
-    /// Get a creature (`*.creature.ron`) by name string
-    fn creature(&self, name: impl AsRef<str>) -> Option<Handle<Creature>>;
-    /// Get a craft (`*.craft.ron`) by name string
-    fn craft(&self, name: impl AsRef<str>) -> Option<Handle<Craft>>;
-    /// Get a building (`*.building.ron`) by name string
-    fn building(&self, name: impl AsRef<str>) -> Option<Handle<Building>>;
-    /// Get an item (`*.item.ron`) by name string
-    fn item(&self, name: impl AsRef<str>) -> Option<Handle<Item>>;
-    /// Get a model (`*.gltf`) by folder and name string
-    fn model(&self, name: impl AsRef<str>) -> Option<Handle<Scene>>;
-}
-
-impl<'a> LibraryExt for Res<'a, Library> {
-    fn creature(&self, name: impl AsRef<str>) -> Option<Handle<Creature>> {
-        self.creatures
-            .get(&format!("creatures/{}.creature.ron", name.as_ref()))
-            .cloned()
-    }
-
-    fn craft(&self, name: impl AsRef<str>) -> Option<Handle<Craft>> {
-        self.crafts
-            .get(&format!("crafts/{}.craft.ron", name.as_ref()))
-            .cloned()
-    }
-
-    fn building(&self, name: impl AsRef<str>) -> Option<Handle<Building>> {
-        self.buildings
-            .get(&format!("buildings/{}.building.ron", name.as_ref()))
-            .cloned()
-    }
-
-    fn item(&self, name: impl AsRef<str>) -> Option<Handle<Item>> {
-        self.items
-            .get(&format!("items/{}.ron", name.as_ref()))
-            .cloned()
-    }
-
-    fn model(&self, name: impl AsRef<str>) -> Option<Handle<Scene>> {
-        // e.g., name is category_name/model_name. Convert to models/category_name/model_name/model_name.gltf
-        let (category_name, model_name) = name.as_ref().split_once('/').unwrap();
-
-        self.models
-            .get(&format!(
-                "models/{0}/{1}/{1}.gltf",
-                category_name, model_name
-            ))
-            .cloned()
     }
 }
 
@@ -206,6 +162,22 @@ where
 
 /// Numerator over denominator
 pub type Chance = (usize, usize);
+
+pub trait Builder: Clone + Component {
+    type Output: Bundle;
+    fn on_add(mut world: DeferredWorld, entity: Entity, _component_id: ComponentId) {
+        // Replace this builder with the actual component, then remove
+        let builder = world.get::<Self>(entity).cloned().unwrap();
+        let drops = Self::into_output(builder, world.resource::<Library>());
+        let mut cmd = world.commands();
+        let mut entity_builder = cmd.entity(entity);
+        entity_builder.insert(drops);
+        entity_builder.remove::<Self>();
+    }
+
+    fn from_output(output: Self::Output) -> Self;
+    fn into_output(builder: Self, library: &Library) -> Self::Output;
+}
 
 #[cfg(test)]
 mod tests {

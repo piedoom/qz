@@ -1,4 +1,5 @@
 use bevy::{
+    ecs::component::StorageType,
     prelude::*,
     utils::{hashbrown, HashMap},
 };
@@ -18,11 +19,56 @@ pub struct Inventory {
 }
 
 /// Build an `Equipped` with starting items
-#[derive(Debug, Component, Default, Clone, Reflect, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Reflect, Serialize, Deserialize)]
 #[reflect(Component, Serialize, Deserialize)]
 pub struct InventoryBuilder {
     pub items: Vec<(String, usize)>,
     pub capacity: usize,
+}
+
+impl Component for InventoryBuilder {
+    const STORAGE_TYPE: bevy::ecs::component::StorageType = StorageType::Table;
+    fn register_component_hooks(hooks: &mut bevy::ecs::component::ComponentHooks) {
+        hooks.on_add(Self::on_add);
+    }
+}
+
+impl Builder for InventoryBuilder {
+    type Output = Inventory;
+
+    fn from_output(output: Self::Output) -> Self {
+        InventoryBuilder {
+            items: output
+                .iter()
+                .map(|(handle, count)| {
+                    let path = handle.path().unwrap();
+                    let name = path
+                        .path()
+                        .file_stem()
+                        .unwrap()
+                        .to_string_lossy()
+                        .to_string();
+                    (name, *count)
+                })
+                .collect(),
+            capacity: output.capacity(),
+        }
+    }
+
+    fn into_output(builder: Self, library: &Library) -> Self::Output {
+        Self::Output {
+            capacity: builder.capacity,
+            space_occupied: 0,
+            items: builder
+                .items
+                .iter()
+                .map(|(name, count)| {
+                    let handle = library.item(name).unwrap();
+                    (handle, *count)
+                })
+                .collect(),
+        }
+    }
 }
 
 impl Default for Inventory {

@@ -121,16 +121,6 @@ pub struct Zone {
     pub scene: Option<Handle<DynamicScene>>,
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct ZoneSerialized {
-    /// The name identifier of this zone
-    pub name: String,
-    /// The depth of this `Zone` in the [`Universe`]. This can help dictate difficulty
-    pub depth: usize,
-    /// Local path of the associated serialized dynamic scene
-    pub scene: Option<String>,
-}
-
 impl Zone {
     pub fn from_depth(depth: usize) -> Self {
         Self {
@@ -144,11 +134,40 @@ impl Zone {
     }
 }
 
-/// A game save
-#[derive(Asset, TypePath, Serialize, Deserialize)]
-pub struct Save {
-    pub name: String,
-    pub universe: UniverseSerialized,
-    pub factions: Factions,
-    pub universe_position: UniversePosition,
+impl Library {
+    pub fn creature(&self, name: impl AsRef<str>) -> Option<Handle<Creature>> {
+        self.creatures
+            .get(&format!("creatures/{}.creature.ron", name.as_ref()))
+            .cloned()
+    }
+
+    pub fn craft(&self, name: impl AsRef<str>) -> Option<Handle<Craft>> {
+        self.crafts
+            .get(&format!("crafts/{}.craft.ron", name.as_ref()))
+            .cloned()
+    }
+
+    pub fn building(&self, name: impl AsRef<str>) -> Option<Handle<Building>> {
+        self.buildings
+            .get(&format!("buildings/{}.building.ron", name.as_ref()))
+            .cloned()
+    }
+
+    pub fn item(&self, name: impl AsRef<str>) -> Option<Handle<Item>> {
+        self.items
+            .get(&format!("items/{}.ron", name.as_ref()))
+            .cloned()
+    }
+
+    pub fn model(&self, name: impl AsRef<str>) -> Option<Handle<Scene>> {
+        // e.g., name is category_name/model_name. Convert to models/category_name/model_name/model_name.gltf
+        let (category_name, model_name) = name.as_ref().split_once('/').unwrap();
+
+        self.models
+            .get(&format!(
+                "models/{0}/{1}/{1}.gltf",
+                category_name, model_name
+            ))
+            .cloned()
+    }
 }

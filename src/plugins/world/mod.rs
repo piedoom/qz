@@ -1,7 +1,6 @@
 mod building;
+mod chunk;
 mod creature;
-mod gate;
-mod zone;
 
 use std::{f32::consts::TAU, time::Duration};
 
@@ -14,12 +13,11 @@ use bevy::{
 };
 use bevy_turborand::prelude::*;
 use building::*;
+use chunk::*;
 use creature::*;
-use gate::*;
 use leafwing_input_manager::InputManagerBundle;
 use petgraph::graph::NodeIndex;
 use rand::{seq::*, Rng};
-use zone::*;
 
 pub struct WorldPlugin;
 
@@ -36,6 +34,7 @@ impl Plugin for WorldPlugin {
             .register_type::<components::Destroyed>()
             .register_type::<components::DockInRange>()
             .register_type::<components::Drops>()
+            .register_type::<components::DropsBuilder>()
             .register_type::<components::DropRate>()
             .register_type::<components::Docked>()
             .register_type::<components::Dockings>()
@@ -46,7 +45,7 @@ impl Plugin for WorldPlugin {
             .register_type::<components::InventoryBuilder>()
             .register_type::<components::EquipmentType>()
             .register_type::<components::Faction>()
-            .register_type::<components::Gate>()
+            .register_type::<Factions>()
             .register_type::<components::Health>()
             .register_type::<components::Heat>()
             .register_type::<components::InRange>()
@@ -69,14 +68,10 @@ impl Plugin for WorldPlugin {
                 color: Color::WHITE,
                 brightness: 20.,
             })
-            .init_resource::<Universe>()
-            .add_systems(OnEnter(AppState::New), (setup, generate))
-            .add_systems(OnExit(AppState::load_game()), setup)
             .add_systems(
                 Update,
                 (
                     manage_spawners,
-                    manage_gates,
                     setup_health,
                     cleanup_empty_chests,
                     update_background_shaders,
@@ -85,214 +80,9 @@ impl Plugin for WorldPlugin {
                     .run_if(in_state(AppState::main())),
             )
             .observe(on_spawn_creature)
-            .observe(on_spawn_gate)
             .observe(on_spawn_building)
-            .observe(on_spawn_zone);
+            .observe(on_generate_chunk);
     }
-}
-
-fn setup(
-    mut cmd: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    crafts: Res<Assets<Craft>>,
-    library: Res<Library>,
-    mut factions: ResMut<Factions>,
-    assets: Res<AssetServer>,
-) {
-    let player_faction = factions
-        .get_faction("player")
-        .cloned()
-        .unwrap_or_else(|| factions.register("player"));
-    let enemy_faction = factions
-        .get_faction("enemy")
-        .cloned()
-        .unwrap_or_else(|| factions.register("enemy"));
-    let player_alliegance = Alliegance {
-        faction: player_faction,
-        allies: [player_faction].into(),
-        enemies: [enemy_faction].into(),
-    };
-    // cmd.spawn(bevy::pbr::FogVolumeBundle {
-    //     transform: Transform::from_scale(Vec3::splat(35.0)),
-    //     ..default()
-    // });
-
-    // Spawn player
-    cmd.spawn((
-        Player(0), // TODO: handle IDs for multiplayer
-        Name::new("player"),
-        InputManagerBundle::<crate::prelude::Action>::default(),
-        ChestsInRange {
-            chests: default(),
-            range: 5f32,
-        },
-        DockInRange {
-            dock: None,
-            range: 5f32,
-        },
-        CraftBundle {
-            craft: crafts.get(&library.craft("bev").unwrap()).unwrap().clone(),
-            alliegance: player_alliegance.clone(),
-            inventory: Inventory::default(),
-            equipped: EquippedBuilder {
-                equipped: [
-                    "minireactor.generator",
-                    "light_laser.weapon",
-                    "autoweld.repair",
-                    "ion.battery",
-                    "ion.battery",
-                    "iron.armor",
-                    "iron.armor",
-                ]
-                .map(ToString::to_string)
-                .into(),
-                slots: [
-                    (EquipmentTypeId::Weapon, 1),
-                    (EquipmentTypeId::RepairBot, 1),
-                    (EquipmentTypeId::Generator, 1),
-                    (EquipmentTypeId::Battery, 3),
-                    (EquipmentTypeId::Armor, 3),
-                ]
-                .into(),
-            },
-            ..default()
-        },
-    ))
-    .with_children(|cmd| {
-        cmd.spawn(SceneBundle {
-            scene: library.model("crafts/pest").unwrap(),
-            ..default()
-        });
-
-        cmd.spawn((
-            MaterialMeshBundle {
-                transform: Transform::from_translation(Vec3::Y * -8f32),
-                mesh: meshes.add(Plane3d::default().mesh().size(100.0, 100.0)),
-                material: assets.add(BackgroundMaterial {
-                    position: default(),
-                }),
-                ..default()
-            },
-            NotShadowCaster,
-            NotShadowReceiver,
-        ));
-    });
-
-    cmd.spawn((
-        DirectionalLightBundle {
-            transform: Transform::from_translation(Vec3::new(5f32, 5f32, 10f32))
-                .looking_at(Vec3::ZERO, Vec3::Z),
-            directional_light: DirectionalLight {
-                shadows_enabled: true,
-                ..Default::default()
-            },
-            ..Default::default()
-        },
-        VolumetricLight,
-    ));
-
-    // Spawn camera
-    cmd.spawn((
-        Camera3dBundle {
-            camera: Camera {
-                hdr: true,
-                ..default()
-            },
-            transform: Transform::from_xyz(0f32, -1f32, 16f32)
-                .looking_at(Vec3::splat(0f32), Dir3::Z),
-            ..default()
-        },
-        // VolumetricFogSettings {
-        //     density: 0.05,
-        //     absorption: 0.03,
-        //     ..Default::default()
-        // },
-        BloomSettings::OLD_SCHOOL,
-        // FogSettings {
-        //     color: Color::srgb(0.25, 0.25, 0.25),
-        //     falloff: FogFalloff::Linear {
-        //         start: 5.0,
-        //         end: 20.0,
-        //     },
-        //     ..default()
-        // },
-    ));
-}
-
-fn generate(
-    mut cmd: Commands,
-    mut next_state: ResMut<NextState<AppState>>,
-    mut universe: ResMut<Universe>,
-    mut rng: ResMut<GlobalRng>,
-    universe_position: Option<ResMut<UniversePosition>>,
-) {
-    // We're going to generate this new section without connecting any nodes, and then we will attach it
-    let length = 4..=8;
-    let nodes_per_layer = 1..=4;
-
-    // Begin graph generation
-    let length = rng.usize(length.clone());
-
-    // We'll also save the first node
-    let mut first_node: NodeIndex = default();
-
-    // Contains all the nodes in the previous layer
-    let mut previous_nodes = vec![];
-
-    // I love LUA!
-    for z in 1..=length {
-        // If first or final, ensure only one node is spawned
-        match z {
-            0 => unreachable!(),
-            // First layer
-            1 => {
-                // Set up the first node. There will always be a single node on the first layer
-                first_node = universe.graph.add_node(Zone::from_depth(z - 1));
-                previous_nodes = [first_node].into();
-                // If the universe position doesn't exist, we insert it now
-                if universe_position.is_none() {
-                    cmd.insert_resource(UniversePosition::from(first_node));
-                }
-            }
-            // Every other layer
-            2.. => {
-                // Spawn a random number of nodes on this layer. There must always be at least one
-                let nodes_per_layer = rng.usize(nodes_per_layer.clone()).max(1);
-                let nodes: Vec<_> = (0..nodes_per_layer)
-                    .map(|_| {
-                        // literally dont worry about the index stuff ok?
-                        let node = universe.graph.add_node(Zone::from_depth(z - 1));
-
-                        // Connect to a previous node at random
-                        let prev_node = rng.sample(&previous_nodes).unwrap();
-                        universe.graph.add_edge(*prev_node, node, ());
-                        node
-                    })
-                    .collect();
-
-                previous_nodes = nodes.clone();
-
-                // If the last in the section...
-                if z == length {
-                    // Connect our newly generated section onto the existing universe endpoints.
-                    // If no other sections exist yet, this won't do anything
-                    for previous_end in universe.end.clone().iter() {
-                        universe.graph.add_edge(*previous_end, first_node, ());
-                    }
-
-                    // We're all connected!
-
-                    // Update the end of this universe
-                    universe.end = nodes;
-                }
-            }
-        }
-    }
-
-    next_state.set(AppState::LoadZone {
-        load: first_node,
-        previous: None,
-    });
 }
 
 fn manage_spawners(
@@ -317,7 +107,7 @@ fn manage_spawners(
             for (spawn, d) in spawns.into_iter() {
                 if rng.gen_ratio(1, d as u32) {
                     // Spawn thing
-                    cmd.trigger(trigger::SpawnCreature {
+                    cmd.trigger(triggers::SpawnCreature {
                         name: spawn.clone(),
                         translation: transform.translation.truncate(),
                         rotation: rng.gen_range(0f32..TAU),
@@ -334,28 +124,6 @@ fn manage_spawners(
             }
 
             spawner.last_tick = time.elapsed();
-        }
-    }
-}
-
-fn manage_gates(
-    mut next_state: ResMut<NextState<AppState>>,
-    player_actions: Query<
-        &leafwing_input_manager::action_state::ActionState<crate::prelude::Action>,
-        With<Player>,
-    >,
-    gates: Query<(&Gate, &CollidingEntities)>,
-) {
-    for (gate, collisions) in gates.iter() {
-        for collision in collisions.iter() {
-            if let Ok(actions) = player_actions.get(*collision) {
-                if actions.just_pressed(&crate::prelude::Action::Interact) {
-                    // TODO move this logic to states
-                    next_state.set(AppState::TransitionZone {
-                        load: gate.destination(),
-                    })
-                }
-            }
         }
     }
 }

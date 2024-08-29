@@ -39,9 +39,11 @@ pub struct Item {
 pub struct Chest;
 
 /// Tracks the chests in range for a particular entity so that the inventory of chests can become available
-#[derive(Component, Reflect, Clone)]
+#[derive(Component, Reflect, Clone, Serialize, Deserialize)]
+#[reflect(Component, Serialize, Deserialize)]
 pub struct ChestsInRange {
     /// All chests within this range
+    #[serde(skip)]
     pub chests: Vec<Entity>,
     /// The range of this sensor
     pub range: f32,

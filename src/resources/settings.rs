@@ -5,12 +5,7 @@ use bevy::{prelude::*, window::WindowMode};
 /// The root settings asset (and resource) for fine-tuning within the
 /// application.
 #[derive(
-    serde::Deserialize,
-    serde::Serialize,
-    Resource,
-    bevy::asset::Asset,
-    bevy::reflect::TypePath,
-    Clone,
+    serde::Deserialize, serde::Serialize, bevy::asset::Asset, bevy::reflect::TypePath, Clone,
 )]
 pub struct Settings {
     /// Application window related settings

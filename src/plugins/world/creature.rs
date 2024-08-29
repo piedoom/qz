@@ -5,7 +5,7 @@ use bevy_turborand::prelude::*;
 use big_brain::prelude::*;
 
 pub(super) fn on_spawn_creature(
-    trigger: Trigger<trigger::SpawnCreature>,
+    trigger: Trigger<triggers::SpawnCreature>,
     mut cmd: Commands,
     mut rng: ResMut<GlobalRng>,
     library: Res<Library>,
@@ -13,7 +13,7 @@ pub(super) fn on_spawn_creature(
     crafts: Res<Assets<Craft>>,
     items: Res<Assets<Item>>,
 ) {
-    let trigger::SpawnCreature {
+    let triggers::SpawnCreature {
         name,
         translation,
         rotation,

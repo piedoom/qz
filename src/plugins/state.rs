@@ -3,15 +3,32 @@ use std::{
     io::Write,
 };
 
-use avian3d::prelude::{Collider, ColliderConstructor, CollisionLayers, RigidBody};
+use avian3d::prelude::{
+    AngularVelocity, Collider, ColliderConstructor, CollisionLayers, ExternalImpulse, Friction,
+    LinearDamping, LinearVelocity, LockedAxes, Mass, RigidBody,
+};
 use bevy::{
-    asset::LoadState,
-    ecs::query::{QueryData, QueryEntityError, ROQueryItem},
+    asset::{AssetPath, LoadState},
+    core_pipeline::bloom::BloomSettings,
+    ecs::{
+        observer::ObserverState,
+        query::{QueryData, QueryEntityError, ROQueryItem},
+    },
+    pbr::{
+        CascadeShadowConfig, Cascades, CascadesVisibleEntities, NotShadowCaster, NotShadowReceiver,
+        VolumetricLight,
+    },
     prelude::*,
+    render::primitives::CascadesFrusta,
     scene::DynamicEntity,
     tasks::IoTaskPool,
+    window::PrimaryWindow,
 };
 use bevy_etcetera::Directories;
+use leafwing_input_manager::{
+    prelude::{InputMap, KeyboardVirtualAxis},
+    InputManagerBundle,
+};
 
 use crate::prelude::*;
 
@@ -20,181 +37,29 @@ pub struct StatePlugin;
 impl Plugin for StatePlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<events::Save>()
-            .add_systems(OnEnter(AppState::load_game()), (enter_game_load,))
+            .init_resource::<SavePath>()
+            .add_systems(OnEnter(AppState::load_game()), (enter_load_game,))
+            .add_systems(OnEnter(AppState::new_game()), (enter_new_game,))
+            .add_systems(OnEnter(AppState::main()), (spawn_camera, finalize_player))
             .add_systems(
                 Update,
-                continue_loading_game.run_if(in_state(AppState::load_game())),
+                (continue_loading,).run_if(in_state(AppState::load_game())),
             )
-            .add_systems(
-                OnEnter(AppState::transition_zone()),
-                (
-                    save_zone_state,
-                    transition_zone_state.after(save_zone_state),
-                ),
-            )
-            .add_systems(
-                OnEnter(AppState::save_game()),
-                (save_zone_state, enter_game_save.after(save_zone_state)),
-            )
-            .add_systems(OnEnter(AppState::load_zone()), (load_zone_state,))
-            .add_systems(Update, move_to_gate);
+            .add_systems(OnEnter(AppState::save_game()), (enter_save_game,));
     }
 }
 
-fn enter_game_save(
-    mut cmd: Commands,
-    mut next_state: ResMut<NextState<AppState>>,
-    save_game_name: Option<Res<SaveGameName>>,
-    universe: Res<Universe>,
-    universe_position: Res<UniversePosition>,
-    directories: Res<Directories>,
-    factions: Res<Factions>,
-) {
-    let mut universe_serialized = UniverseSerialized {
-        end: universe.end.clone(),
-        graph: default(),
-    };
-    let save_game_name = if let Some(save_game_name) = save_game_name {
-        save_game_name.clone()
-    } else {
-        let save_name = SaveGameName::new();
-        cmd.insert_resource(save_name.clone());
-        save_name
-    };
-
-    for (_, _) in universe
-        .graph
-        .node_weights()
-        .zip(universe.graph.node_indices())
-    {
-        universe_serialized.graph = universe.graph.map(
-            |node, weight| {
-                if weight.scene.is_some() {
-                    ZoneSerialized {
-                        name: weight.name.clone(),
-                        depth: weight.depth,
-                        scene: Some(format!("{}.zone.ron", node.index())),
-                    }
-                } else {
-                    ZoneSerialized {
-                        name: weight.name.clone(),
-                        depth: weight.depth,
-                        scene: None,
-                    }
-                }
-            },
-            |_, weight| *weight,
-        );
-    }
-
-    let save_path = directories
-        .data_dir()
-        .join(save_game_name.0.clone())
-        .join(save_game_name.0.clone())
-        .with_extension("save.ron");
-    let universe_position = *universe_position;
-
-    let save_game_name = save_game_name.0.clone();
-
-    let factions = factions.clone();
-
-    IoTaskPool::get()
-        .spawn(async move {
-            let serialized_save = ron::to_string(&Save {
-                universe: universe_serialized,
-                universe_position,
-                name: save_game_name,
-                factions,
-            })
-            .unwrap();
-            // Write the save data to file
-            File::create(save_path)
-                .and_then(|mut file| file.write(serialized_save.as_bytes()))
-                .expect("Error while writing save to file");
-        })
-        .detach();
-
-    next_state.set(AppState::Main);
-}
-
-#[derive(Resource)]
-struct Loading {
-    save: Handle<Save>,
-    started_loading_zones: bool,
-    zones: Vec<Handle<DynamicScene>>,
-}
-
-fn enter_game_load(mut cmd: Commands, assets: Res<AssetServer>, state: Res<State<AppState>>) {
-    let AppState::LoadGame(path) = state.get() else {
+fn enter_save_game(world: &mut World) {
+    let AppState::SaveGame { save_path } = world.resource::<State<AppState>>().get().clone() else {
         unreachable!()
     };
 
-    let save = assets.load::<Save>(path);
-    let loading = Loading {
-        save,
-        zones: vec![],
-        started_loading_zones: false,
-    };
-    cmd.insert_resource(loading);
-}
-
-// Ensure everything is loaded before moving to the next state
-fn continue_loading_game(
-    mut cmd: Commands,
-    mut loading: ResMut<Loading>,
-    mut next_state: ResMut<NextState<AppState>>,
-    directories: Res<Directories>,
-    assets: Res<AssetServer>,
-    saves: Res<Assets<Save>>,
-) {
-    // check if main file is done loading
-    if let bevy::asset::LoadState::Loaded = assets.load_state(loading.save.id()) {
-        let save = saves.get(&loading.save).unwrap();
-
-        // loaded. check if this is the first time this is true, and if so, load zones
-        if !loading.started_loading_zones {
-            loading.started_loading_zones = true;
-
-            cmd.insert_resource(save.factions.clone());
-            cmd.insert_resource(SaveGameName(save.name.clone()));
-            cmd.insert_resource(Universe {
-                end: save.universe.end.clone(),
-                graph: save.universe.graph.map(
-                    |_, weight| Zone {
-                        name: weight.name.clone(),
-                        depth: weight.depth,
-                        scene: weight.scene.as_ref().map(|scene| {
-                            let handle = assets
-                                .load(directories.data_dir().join(save.name.clone()).join(scene));
-                            loading.zones.push(handle.clone());
-                            handle
-                        }),
-                    },
-                    |_, weight| *weight,
-                ),
-            });
-        }
-
-        if !loading
-            .zones
-            .iter()
-            .any(|x| assets.get_load_state(x) != Some(LoadState::Loaded))
-        {
-            // all loaded, transition!
-            let save = saves.get(&loading.save).unwrap();
-
-            cmd.insert_resource(save.universe_position);
-
-            next_state.set(AppState::LoadZone {
-                load: save.universe_position.0,
-                previous: None,
-            });
-        }
-    }
-}
-
-fn save_zone_state(world: &mut World) {
     let mut scene = DynamicScene::default();
+
+    // Extract necessary resources
+    scene
+        .resources
+        .push(Box::new(world.resource::<Factions>().clone()));
 
     let entities = world
         .archetypes()
@@ -232,6 +97,7 @@ fn save_zone_state(world: &mut World) {
                 self.world.query::<T>().get(self.world, entity)
             }
         }
+
         let mut w = W { world, entity };
 
         // Skip certain entities from serialization
@@ -244,6 +110,34 @@ fn save_zone_state(world: &mut World) {
             entity,
             components: Vec::new(),
         };
+
+        #[allow(clippy::manual_map)]
+        if let Some(collider) = w.get::<Collider>().cloned() {
+            let shape = collider.shape();
+            let maybe_collider = if let Some(ball) = shape.as_ball() {
+                Some(ColliderConstructor::Sphere {
+                    radius: ball.radius,
+                })
+            } else if let Some(cuboid) = shape.as_cuboid() {
+                let length = cuboid.half_extents * 2f32;
+                Some(ColliderConstructor::Cuboid {
+                    x_length: length.x,
+                    y_length: length.y,
+                    z_length: length.z,
+                })
+            } else if let Some(cylinder) = shape.as_cylinder() {
+                Some(ColliderConstructor::Cylinder {
+                    radius: cylinder.radius,
+                    height: cylinder.half_height * 2f32,
+                })
+            } else {
+                None
+            };
+
+            if let Some(cc) = maybe_collider {
+                dynamic_entity.components.push(Box::new(cc));
+            }
+        }
 
         if let Some(equipped) = w.get::<Equipped>().cloned() {
             // Getting equipment is somewhat indirect since the individual `Equipment` entities
@@ -275,40 +169,25 @@ fn save_zone_state(world: &mut World) {
                 slots: equipped.slots.into_iter().collect(),
             }));
         }
-        #[allow(clippy::manual_map)]
-        if let Some(collider) = w.get::<Collider>().cloned() {
-            let shape = collider.shape();
-            let maybe_collider = if let Some(ball) = shape.as_ball() {
-                Some(ColliderConstructor::Sphere {
-                    radius: ball.radius,
-                })
-            } else if let Some(cuboid) = shape.as_cuboid() {
-                let length = cuboid.half_extents * 2f32;
-                Some(ColliderConstructor::Cuboid {
-                    x_length: length.x,
-                    y_length: length.y,
-                    z_length: length.z,
-                })
-            } else if let Some(cylinder) = shape.as_cylinder() {
-                Some(ColliderConstructor::Cylinder {
-                    radius: cylinder.radius,
-                    height: cylinder.half_height * 2f32,
-                })
-            } else {
-                None
-            };
 
-            if let Some(cc) = maybe_collider {
-                dynamic_entity.components.push(Box::new(cc));
-            }
+        if let Some(inventory) = w.get::<Inventory>().cloned() {
+            dynamic_entity
+                .components
+                .push(Box::new(InventoryBuilder::from_output(inventory)));
         }
 
+        if let Some(drops) = w.get::<Drops>().cloned() {
+            dynamic_entity
+                .components
+                .push(Box::new(DropsBuilder::from_output(drops)));
+        }
+
+        w.extract::<Player>(&mut dynamic_entity);
         w.extract::<Transform>(&mut dynamic_entity);
         w.extract::<Name>(&mut dynamic_entity);
         w.extract::<Alliegance>(&mut dynamic_entity);
         w.extract::<Craft>(&mut dynamic_entity);
         w.extract::<RigidBody>(&mut dynamic_entity);
-        w.extract::<CollisionLayers>(&mut dynamic_entity);
         w.extract::<Credits>(&mut dynamic_entity);
         w.extract::<Damage>(&mut dynamic_entity);
         w.extract::<Destroyed>(&mut dynamic_entity);
@@ -316,177 +195,303 @@ fn save_zone_state(world: &mut World) {
         w.extract::<Model>(&mut dynamic_entity);
         w.extract::<Structure>(&mut dynamic_entity);
         w.extract::<GlobalTransform>(&mut dynamic_entity);
-        w.extract::<Gate>(&mut dynamic_entity);
         w.extract::<Health>(&mut dynamic_entity);
         w.extract::<Persistent>(&mut dynamic_entity);
         w.extract::<Spawner>(&mut dynamic_entity);
         w.extract::<Dockings>(&mut dynamic_entity);
-
-        // if let Some(inventory) = w.get::<Inventory>().cloned() {
-        //     dynamic_entity.components.push(Box::new(inventory));
-        // }
-        // let drops = w.get::<Drops>().cloned().map(|drops| {
-        //     drops
-        //         .0
-        //         .iter()
-        //         .map(|(handle, v)| {
-        //             (
-        //                 // TODO: This is horrible
-        //                 handle
-        //                     .path()
-        //                     .unwrap()
-        //                     .to_string()
-        //                     .replace("items/", "")
-        //                     .replace(".ron", ""),
-        //                 v.clone(),
-        //             )
-        //         })
-        //         .collect()
-        // });
+        w.extract::<CollisionLayers>(&mut dynamic_entity);
+        w.extract::<LinearVelocity>(&mut dynamic_entity);
+        w.extract::<LockedAxes>(&mut dynamic_entity);
+        w.extract::<Controller>(&mut dynamic_entity);
+        w.extract::<ChestsInRange>(&mut dynamic_entity);
+        w.extract::<DockInRange>(&mut dynamic_entity);
+        w.extract::<Friction>(&mut dynamic_entity);
+        w.extract::<SpotLight>(&mut dynamic_entity);
+        w.extract::<PointLight>(&mut dynamic_entity);
+        w.extract::<DirectionalLight>(&mut dynamic_entity);
+        w.extract::<CascadesFrusta>(&mut dynamic_entity);
+        w.extract::<Cascades>(&mut dynamic_entity);
+        w.extract::<CascadeShadowConfig>(&mut dynamic_entity);
+        w.extract::<CascadesVisibleEntities>(&mut dynamic_entity);
+        w.extract::<InheritedVisibility>(&mut dynamic_entity);
+        w.extract::<ViewVisibility>(&mut dynamic_entity);
+        w.extract::<VolumetricLight>(&mut dynamic_entity);
+        w.extract::<Mass>(&mut dynamic_entity);
 
         if !dynamic_entity.components.is_empty() {
             scene.entities.push(dynamic_entity);
         }
     }
 
-    let current = world.resource::<UniversePosition>().get();
-
-    // Insert the serialized scene into the universe
-    let scenes = world.resource::<Assets<DynamicScene>>();
-
-    // reserve a handle
-    let handle = scenes.reserve_handle();
-
     let serialized_scene = {
         let registry = world.resource::<AppTypeRegistry>().read();
         scene.serialize(&registry).unwrap()
     };
 
-    // Add the asset
-    let mut scenes = world.resource_mut::<Assets<DynamicScene>>();
-    scenes.insert(handle.id(), scene);
+    // // Create save path if it doesn't already exist
+    // create_dir_all(save_path.clone().0).ok();
 
-    // Assign the scene handle to this node
-    let mut universe = world.resource_mut::<Universe>();
-    let node_weight = universe.graph.node_weight_mut(current).unwrap();
-
-    node_weight.scene = Some(handle);
-
-    // If a save file exists,
-    if let Some(save_name) = world.get_resource::<SaveGameName>().cloned() {
-        let directories = world.resource::<Directories>();
-
-        // Get a unique save path within this save
-        let save_dir = directories.data_dir().join(save_name.0);
-
-        // Create paths if they don't already exist
-        create_dir_all(&save_dir).ok();
-
-        let save_path = save_dir
-            .join(current.index().to_string())
-            .with_extension("zone.ron");
-
-        // Save this scene handle to disk
-        IoTaskPool::get()
-            .spawn(async move {
-                // Write the scene RON data to file
-                File::create(save_path)
-                    .and_then(|mut file| file.write(serialized_scene.as_bytes()))
-                    .expect("Error while writing scene to file");
-            })
-            .detach();
+    if let Ok(mut window) = world
+        .query_filtered::<&mut Window, With<PrimaryWindow>>()
+        .get_single_mut(world)
+    {
+        window.title = save_path.clone().to_string_lossy().to_string();
     }
-}
 
-fn transition_zone_state(world: &mut World) {
-    // Change the world position
-    let AppState::TransitionZone { load } = world
-        .get_resource::<State<AppState>>()
-        .unwrap()
-        .get()
-        .clone()
-    else {
-        unreachable!()
-    };
-    let node = world.resource_mut::<UniversePosition>().0;
-    world.resource_mut::<UniversePosition>().0 = load;
+    *world.resource_mut::<SavePath>() = SavePath(Some(save_path.clone()));
+
+    // Save this scene handle to disk
+    IoTaskPool::get()
+        .spawn(async move {
+            // Write the scene RON data to file
+            File::create(save_path.clone())
+                .and_then(|mut file| file.write(serialized_scene.as_bytes()))
+                .expect("Error while writing scene to file");
+        })
+        .detach();
+
     world
-        .get_resource_mut::<NextState<AppState>>()
-        .unwrap()
-        .set(AppState::LoadZone {
-            load,
-            previous: Some(node),
-        });
+        .resource_mut::<NextState<AppState>>()
+        .set(AppState::Main);
 }
 
-/// Transition from one node to another, or from the first node
-fn load_zone_state(
+/// Load an entire save game
+fn enter_load_game(
     mut cmd: Commands,
-    mut next_state: ResMut<NextState<AppState>>,
-    players: Query<Entity, With<Player>>,
-    things: Query<Entity, (With<Collider>, Without<Player>)>,
-    universe: Res<Universe>,
+    assets: Res<AssetServer>,
+    entities: Query<Entity, (Without<ObserverState>, Without<Window>)>,
     state: Res<State<AppState>>,
 ) {
-    let AppState::LoadZone { load, previous } = state.get() else {
+    let AppState::LoadGame { path } = state.get() else {
         unreachable!()
     };
 
-    dbg!(universe
-        .graph
-        .node_indices()
-        .map(|x| x.index())
-        .collect::<Vec<_>>());
-
-    if let Some(zone) = universe.graph.node_weight(*load) {
-        // Clean up
-        for thing in things.iter() {
-            cmd.entity(thing).despawn_recursive();
-        }
-
-        // dbg!(&zone.description);
-        match &zone.scene {
-            Some(scene) => {
-                cmd.spawn(DynamicSceneBundle {
-                    scene: scene.clone(),
-                    ..Default::default()
-                });
-            }
-
-            None => {
-                // Generate new world
-                cmd.trigger(trigger::SpawnZone { node: *load })
-            }
-        }
-
-        if let Some(previous) = previous {
-            // Move the player to the correct position when its available
-            for player in players.iter() {
-                cmd.entity(player).insert(MoveToGate(*previous));
-            }
-        }
-    } else {
-        panic!("attempted to load invalid node index {:?}", load);
+    // Clean up
+    for entity in entities.iter() {
+        cmd.entity(entity).despawn_recursive();
     }
+    // Begin load the given path
+    let scene = assets.load::<DynamicScene>(AssetPath::from_path(path));
+    cmd.insert_resource(CurrentlyLoading(scene));
+}
+
+/// Wait for the loaded savegame to deserialize, then spawn the world
+pub fn continue_loading(
+    mut cmd: Commands,
+    mut next_state: ResMut<NextState<AppState>>,
+    state: Res<State<AppState>>,
+    loading: Res<CurrentlyLoading>,
+    asset_server: Res<AssetServer>,
+) {
+    if LoadState::Loaded == asset_server.load_state(loading.0.id()) {
+        // The asset is fully loaded. Spawn the scene then transition states
+        cmd.spawn(DynamicSceneBundle {
+            scene: loading.0.clone(),
+            ..Default::default()
+        });
+        let AppState::LoadGame { path } = state.get() else {
+            unreachable!()
+        };
+        cmd.insert_resource(SavePath(Some(path.clone())));
+        next_state.set(AppState::Main);
+    }
+}
+
+/// Add some special components to the player each time
+pub fn finalize_player(
+    mut cmd: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<BackgroundMaterial>>,
+    library: Res<Library>,
+    settings: Res<Assets<Settings>>,
+    players: Query<Entity, With<Player>>,
+) {
+    let settings = settings.get(&library.settings).unwrap();
+    for player_entity in players.iter() {
+        cmd.entity(player_entity)
+            .insert((
+                ExternalImpulse::default(),
+                AngularVelocity::default(),
+                LinearDamping::default(),
+            ))
+            .insert(InputManagerBundle::with_map(
+                InputMap::default()
+                    .with_axis(
+                        Action::Turn,
+                        KeyboardVirtualAxis::new(
+                            settings.controls.keyboard.left,
+                            settings.controls.keyboard.right,
+                        ),
+                    )
+                    .with_axis(
+                        Action::Thrust,
+                        KeyboardVirtualAxis::new(
+                            settings.controls.keyboard.brake,
+                            settings.controls.keyboard.thrust,
+                        ),
+                    )
+                    .with(Action::Fire, settings.controls.keyboard.fire)
+                    .with(Action::Take, settings.controls.keyboard.take)
+                    .with(Action::Interact, settings.controls.keyboard.interact),
+            ))
+            .with_children(|cmd| {
+                cmd.spawn((
+                    MaterialMeshBundle {
+                        transform: Transform::from_translation(Vec3::Y * -8f32),
+                        mesh: meshes.add(Plane3d::default().mesh().size(100.0, 100.0)),
+                        material: materials.add(BackgroundMaterial {
+                            position: default(),
+                        }),
+                        ..default()
+                    },
+                    NotShadowCaster,
+                    NotShadowReceiver,
+                ));
+            });
+    }
+}
+
+pub fn spawn_camera(mut cmd: Commands, camera: Query<(), With<Camera>>) {
+    if camera.is_empty() {
+        // Spawn camera
+        cmd.spawn((
+            Camera3dBundle {
+                camera: Camera {
+                    hdr: true,
+                    ..default()
+                },
+                transform: Transform::from_xyz(0f32, -1f32, 16f32)
+                    .looking_at(Vec3::splat(0f32), Dir3::Z),
+                ..default()
+            },
+            // VolumetricFogSettings {
+            //     density: 0.05,
+            //     absorption: 0.03,
+            //     ..Default::default()
+            // },
+            BloomSettings::OLD_SCHOOL,
+            // FogSettings {
+            //     color: Color::srgb(0.25, 0.25, 0.25),
+            //     falloff: FogFalloff::Linear {
+            //         start: 5.0,
+            //         end: 20.0,
+            //     },
+            //     ..default()
+            // },
+        ));
+    }
+}
+
+/// Create a new world
+pub fn enter_new_game(
+    mut cmd: Commands,
+    mut save_path: ResMut<SavePath>,
+    mut next_state: ResMut<NextState<AppState>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut factions: ResMut<Factions>,
+    directories: Res<Directories>,
+    crafts: Res<Assets<Craft>>,
+    library: Res<Library>,
+    assets: Res<AssetServer>,
+) {
+    cmd.insert_resource(Chunks::new());
+    // Set the new save path
+    let save_name = format!(
+        "{}-{}.save.ron",
+        random_word::gen(random_word::Lang::En),
+        random_word::gen(random_word::Lang::En)
+    );
+    **save_path = Some(directories.data_dir().join(save_name));
+    cmd.trigger(triggers::GenerateChunks {
+        // Spawn in a cross shape
+        chunk_indicies: vec![
+            (0, 0).into(),
+            (0, 1).into(),
+            (1, 0).into(),
+            (-1, 0).into(),
+            (-1, -0).into(),
+        ],
+    });
+
+    let player_faction = factions
+        .get_faction("player")
+        .cloned()
+        .unwrap_or_else(|| factions.register("player"));
+    let enemy_faction = factions
+        .get_faction("enemy")
+        .cloned()
+        .unwrap_or_else(|| factions.register("enemy"));
+    let player_alliegance = Alliegance {
+        faction: player_faction,
+        allies: [player_faction].into(),
+        enemies: [enemy_faction].into(),
+    };
+    // cmd.spawn(bevy::pbr::FogVolumeBundle {
+    //     transform: Transform::from_scale(Vec3::splat(35.0)),
+    //     ..default()
+    // });
+
+    // Spawn player
+    cmd.spawn((
+        Player(0), // TODO: handle IDs for multiplayer
+        Persistent,
+        Name::new("player"),
+        ChestsInRange {
+            chests: default(),
+            range: 5f32,
+        },
+        DockInRange {
+            dock: None,
+            range: 5f32,
+        },
+        CraftBundle {
+            craft: crafts.get(&library.craft("bev").unwrap()).unwrap().clone(),
+            alliegance: player_alliegance.clone(),
+            inventory: Inventory::default(),
+            equipped: EquippedBuilder {
+                equipped: [
+                    "minireactor.generator",
+                    "light_laser.weapon",
+                    "autoweld.repair",
+                    "ion.battery",
+                    "ion.battery",
+                    "iron.armor",
+                    "iron.armor",
+                ]
+                .map(ToString::to_string)
+                .into(),
+                slots: [
+                    (EquipmentTypeId::Weapon, 1),
+                    (EquipmentTypeId::RepairBot, 1),
+                    (EquipmentTypeId::Generator, 1),
+                    (EquipmentTypeId::Battery, 3),
+                    (EquipmentTypeId::Armor, 3),
+                ]
+                .into(),
+            },
+            ..default()
+        },
+        Model::new(library.model("crafts/pest").unwrap()),
+    ));
+
+    cmd.spawn((
+        DirectionalLightBundle {
+            transform: Transform::from_translation(Vec3::new(5f32, 5f32, 10f32))
+                .looking_at(Vec3::ZERO, Vec3::Z),
+            directional_light: DirectionalLight {
+                shadows_enabled: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        Persistent,
+        VolumetricLight,
+    ));
+
+    // Move to the main game state
     next_state.set(AppState::Main);
 }
 
-// move the player to a gate
-fn move_to_gate(
-    mut cmd: Commands,
-    mut player_transforms: Query<(Entity, &mut Transform, &MoveToGate), With<Player>>,
-    gates: Query<(&Gate, &GlobalTransform), (Without<Player>, With<Transform>)>,
-) {
-    for (player_entity, mut player_transform, move_to_gate) in player_transforms.iter_mut() {
-        dbg!(
-            gates.iter().map(|x| x.0.destination()).collect::<Vec<_>>(),
-            move_to_gate.0
-        );
-        if let Some((_, gate_transform)) =
-            gates.iter().find(|g| g.0.destination() == move_to_gate.0)
-        {
-            player_transform.translation = gate_transform.compute_transform().translation;
-            cmd.entity(player_entity).remove::<MoveToGate>();
-        }
-    }
-}
+/// Local-ish resource
+#[derive(Resource)]
+struct CurrentlyLoading(pub Handle<DynamicScene>);

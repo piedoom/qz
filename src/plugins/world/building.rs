@@ -4,14 +4,14 @@ use bevy::prelude::*;
 use bevy_turborand::prelude::*;
 
 pub(super) fn on_spawn_building(
-    trigger: Trigger<trigger::SpawnBuilding>,
+    trigger: Trigger<triggers::SpawnBuilding>,
     mut cmd: Commands,
     mut rng: ResMut<GlobalRng>,
     library: Res<Library>,
     buildings: Res<Assets<Building>>,
     items: Res<Assets<Item>>,
 ) {
-    let trigger::SpawnBuilding {
+    let triggers::SpawnBuilding {
         name,
         translation,
         rotation,

@@ -16,9 +16,7 @@ mod player;
 mod structure;
 /// Utility components that do not fit in any specific grouping
 mod utility;
-/// World level and scenery components
-mod world;
 pub use {
     ai::*, controller::Controller, craft::*, credits::*, faction::*, items::*, player::*,
-    structure::*, utility::*, world::*,
+    structure::*, utility::*,
 };

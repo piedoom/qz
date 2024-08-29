@@ -23,12 +23,7 @@ impl Plugin for UiPlugin {
     }
 }
 
-fn draw_toasts(
-    mut contexts: EguiContexts,
-    mut errors: EventReader<GameError>,
-    universe: Res<Universe>,
-    maybe_universe_position: Option<Res<UniversePosition>>,
-) {
+fn draw_toasts(mut contexts: EguiContexts, mut errors: EventReader<GameError>) {
     let mut toasts = Toasts::new()
         .anchor(Align2::RIGHT_BOTTOM, (-10.0, -10.0)) // 10 units from the bottom right corner
         .direction(egui::Direction::BottomUp);
@@ -48,14 +43,6 @@ fn draw_toasts(
         .interactable(false)
         .anchor(Align2::RIGHT_BOTTOM, (16f32, 16f32))
         .show(contexts.ctx_mut(), |ui| {
-            if let Some(universe_position) = maybe_universe_position {
-                if let Some(node) = universe.graph.node_weight(universe_position.get()) {
-                    ui.horizontal_top(|ui| {
-                        ui.heading(node.name.clone());
-                        ui.heading(format!("Depth: {}", node.depth.clone()));
-                    });
-                }
-            }
             toasts.show(ui.ctx());
         });
 }

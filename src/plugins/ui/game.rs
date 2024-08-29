@@ -13,6 +13,8 @@ pub(super) fn draw_ui(
     mut selected_item: Local<Option<Item>>,
     mut store_events: EventWriter<events::StoreEvent>,
     mut next_state: ResMut<NextState<AppState>>,
+    mut current_save: ResMut<SavePath>,
+    state: Res<State<AppState>>,
     equipment: Query<&Equipment>,
     items: Res<Assets<Item>>,
     inventories: Query<&Inventory>,
@@ -110,7 +112,10 @@ pub(super) fn draw_ui(
             ) in player.iter()
             {
                 if ui.button("save").clicked() {
-                    next_state.set(AppState::SaveGame);
+                    let path: std::path::PathBuf =
+                        current_save.0.clone().unwrap_or_else(|| "save_game".into());
+                    *current_save = SavePath(Some(path.clone()));
+                    next_state.set(AppState::SaveGame { save_path: path });
                 }
 
                 ui.heading(format!("Credits: {}", credits.get()));
@@ -360,13 +365,8 @@ pub(super) fn draw_ui(
 pub(super) fn draw_minimaps(
     mut contexts: EguiContexts,
     query: Query<(&'static GlobalTransform, &'static Collider)>,
-    gate_query: Query<(&'static GlobalTransform, &'static Gate)>,
     player_transform: Query<&Transform, With<Player>>,
-    universe: Res<Universe>,
-    maybe_universe_position: Option<Res<UniversePosition>>,
 ) {
-    let _node: Vec<_> = universe.graph.node_weights().collect();
-
     if let Ok(player_transform) = player_transform.get_single() {
         let translation = player_transform.translation.truncate();
         egui::Area::new("minimap".into())
@@ -378,14 +378,6 @@ pub(super) fn draw_minimaps(
                     scale: 4f32,
                     collider_query: &query,
                     world_center: (translation.x, translation.y).into(),
-                    gate_query: &gate_query,
-                    universe_graph: &universe.graph,
-                });
-
-                ui.add(widgets::UniverseMap {
-                    size: egui::Vec2::new(240f32, 480f32),
-                    graph: Some(&universe.graph),
-                    current_position: maybe_universe_position,
                 });
             });
     }

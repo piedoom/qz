@@ -106,26 +106,6 @@ pub enum StoreEvent {
     },
 }
 
-/// Module for game level triggers to setup and spawn the world
-pub mod triggers {
-    use super::*;
-
-    /// Spawn a creature
-    #[derive(Event)]
-    pub struct SpawnCreature {
-        /// Creature name string
-        pub name: String,
-        /// Spawn translation
-        pub translation: Vec2,
-        /// Spawn rotation in radians
-        pub rotation: f32,
-        /// Alliegance
-        pub alliegance: Alliegance,
-        /// Optional spawner this creature was spawned from
-        pub spawner: Option<Entity>,
-    }
-}
-
 /// Save the universe
 #[derive(Event, Clone, Copy)]
 pub struct Save {

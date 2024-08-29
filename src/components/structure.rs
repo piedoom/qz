@@ -21,9 +21,11 @@ pub struct Docked(pub Entity);
 
 /// Updated to determine the nearest dockable structure
 /// Stores a dockable entity in range
-#[derive(Component, Reflect)]
+#[derive(Component, Reflect, Serialize, Deserialize, Clone, Copy)]
+#[reflect(Component, Serialize, Deserialize)]
 pub struct DockInRange {
     /// The dock in range, if it exists
+    #[serde(skip)]
     pub dock: Option<Entity>,
     /// The max search radius from the entity
     pub range: f32,

@@ -9,10 +9,8 @@ mod factions;
 /// Game settings
 pub mod settings;
 /// Triggers
-pub mod trigger;
+pub mod triggers;
 /// Utility resources
 mod util;
-/// World resources
-mod world;
 
-pub use {action::*, assets::*, factions::Factions, settings::Settings, util::*, world::*};
+pub use {action::*, assets::*, factions::*, settings::Settings, util::*};

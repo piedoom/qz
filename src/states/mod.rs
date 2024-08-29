@@ -1,5 +1,6 @@
+use std::path::PathBuf;
+
 use bevy::{asset::AssetPath, prelude::*};
-use petgraph::graph::NodeIndex;
 
 // use crate::prelude::UniverseDescription;
 
@@ -16,21 +17,16 @@ pub enum AppState {
     /// The main application state
     Main,
 
-    /// New game
-    New,
-
-    /// Load an entire new universe
-    LoadGame(AssetPath<'static>),
+    /// Create a new game and generate the world, additionally assigning a save game name
+    NewGame,
 
     /// Save the current universe
-    SaveGame,
-
-    TransitionZone {
-        load: NodeIndex,
+    SaveGame {
+        save_path: PathBuf,
     },
-    LoadZone {
-        load: NodeIndex,
-        previous: Option<NodeIndex>,
+    /// Load a game
+    LoadGame {
+        path: PathBuf,
     },
 }
 
@@ -61,7 +57,7 @@ impl AppState {
     /// AppState::Loading { .. }
     #[inline(always)]
     pub fn load_game() -> Self {
-        Self::LoadGame(Default::default())
+        Self::LoadGame { path: default() }
     }
     /// AppState::Main { .. }
     #[inline(always)]
@@ -71,19 +67,13 @@ impl AppState {
     /// AppState::SaveGame { .. }
     #[inline(always)]
     pub fn save_game() -> Self {
-        Self::SaveGame
-    }
-    /// Save the current zone and load the next
-    #[inline(always)]
-    pub fn transition_zone() -> Self {
-        Self::TransitionZone { load: default() }
-    }
-
-    #[inline(always)]
-    pub fn load_zone() -> Self {
-        Self::LoadZone {
-            load: default(),
-            previous: default(),
+        Self::SaveGame {
+            save_path: default(),
         }
+    }
+    /// AppState::NewGame { .. }
+    #[inline(always)]
+    pub fn new_game() -> Self {
+        Self::NewGame
     }
 }

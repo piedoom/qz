@@ -15,62 +15,75 @@ impl Plugin for InputPlugin {
             .add_systems(
                 Update,
                 (
-                    apply_player_input.run_if(in_state(AppState::main())),
                     apply_app_input,
-                    update_player_bindings.run_if(resource_exists::<Settings>),
-                ),
+                    apply_player_input,
+                    //update_player_bindings
+                )
+                    .run_if(resource_exists::<Library>),
             )
             .add_systems(
                 Update,
-                (update_app_action_bindings,).run_if(resource_exists_and_changed::<Settings>),
+                (update_app_action_bindings,).run_if(resource_exists_and_changed::<Library>),
             );
     }
 }
 
-fn update_player_bindings(
-    mut player_bindings: Query<&mut InputMap<Action>, With<Player>>,
-    new_players: Query<(), Added<Player>>,
-    settings: Res<Settings>,
-) {
-    let mut set_player_bindings = || {
-        if let Ok(mut player_bindings) = player_bindings.get_single_mut() {
-            *player_bindings = InputMap::default()
-                .with_axis(
-                    Action::Turn,
-                    KeyboardVirtualAxis::new(
-                        settings.controls.keyboard.left,
-                        settings.controls.keyboard.right,
-                    ),
-                )
-                .with_axis(
-                    Action::Thrust,
-                    KeyboardVirtualAxis::new(
-                        settings.controls.keyboard.brake,
-                        settings.controls.keyboard.thrust,
-                    ),
-                )
-                .with(Action::Fire, settings.controls.keyboard.fire)
-                .with(Action::Take, settings.controls.keyboard.take)
-                .with(Action::Interact, settings.controls.keyboard.interact);
-        }
-    };
-
-    if settings.is_changed() {
-        set_player_bindings();
-    }
-
-    if !new_players.is_empty() {
-        set_player_bindings();
-    }
-}
+// fn update_player_bindings(
+//     mut cmd: Commands,
+//     players: Query<Entity, With<Player>>,
+//     new_players: Query<
+//         (),
+//         (
+//             With<Player>,
+//             Or<(Without<InputMap<Action>>, Without<ActionState<Action>>)>,
+//         ),
+//     >,
+//     library: Res<Library>,
+//     settings: Res<Assets<Settings>>,
+// ) {
+//     if settings.is_changed() || !new_players.is_empty() {
+//         for player in players.iter() {
+//             let settings = settings.get(&library.settings).unwrap();
+//             cmd.entity(player).insert(InputManagerBundle::with_map(
+//                 InputMap::default()
+//                     .with_axis(
+//                         Action::Turn,
+//                         KeyboardVirtualAxis::new(
+//                             settings.controls.keyboard.left,
+//                             settings.controls.keyboard.right,
+//                         ),
+//                     )
+//                     .with_axis(
+//                         Action::Thrust,
+//                         KeyboardVirtualAxis::new(
+//                             settings.controls.keyboard.brake,
+//                             settings.controls.keyboard.thrust,
+//                         ),
+//                     )
+//                     .with(Action::Fire, settings.controls.keyboard.fire)
+//                     .with(Action::Take, settings.controls.keyboard.take)
+//                     .with(Action::Interact, settings.controls.keyboard.interact),
+//             ));
+//         }
+//     }
+// }
 
 fn update_app_action_bindings(
     mut app_actions: ResMut<InputMap<AppAction>>,
-    settings: Res<Settings>,
+    library: Res<Library>,
+    settings: Res<Assets<Settings>>,
 ) {
     InputManagerPlugin::<AppAction>::default();
     // Resource level input
-    *app_actions = InputMap::default().with(AppAction::Console, settings.controls.keyboard.console);
+    *app_actions = InputMap::default().with(
+        AppAction::Console,
+        settings
+            .get(&library.settings)
+            .unwrap()
+            .controls
+            .keyboard
+            .console,
+    );
 }
 
 fn apply_app_input(mut draw_inspector: ResMut<DrawInspector>, input: Res<ActionState<AppAction>>) {
@@ -86,7 +99,7 @@ fn apply_player_input(
             Entity,
             &ActionState<Action>,
             &mut Controller,
-            &Children,
+            Option<&Children>,
             &Transform,
             &ChestsInRange,
             &DockInRange,
@@ -105,7 +118,7 @@ fn apply_player_input(
         player_entity,
         actions,
         mut controller,
-        children,
+        maybe_children,
         transform,
         chests_in_range,
         dock_in_range,
@@ -148,10 +161,12 @@ fn apply_player_input(
         };
 
         // Get all weapons attached to the player
-        for child in children.iter() {
-            if let Ok(mut weapon) = weapons.get_mut(*child) {
-                weapon.wants_to_fire = actions.pressed(&Action::Fire);
-                weapon.target = cursor_position;
+        if let Some(children) = maybe_children {
+            for child in children.iter() {
+                if let Ok(mut weapon) = weapons.get_mut(*child) {
+                    weapon.wants_to_fire = actions.pressed(&Action::Fire);
+                    weapon.target = cursor_position;
+                }
             }
         }
 

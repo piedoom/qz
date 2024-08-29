@@ -27,7 +27,6 @@ impl Plugin for DebugPlugin {
                     draw_chests,
                     draw_active_chests,
                     draw_grids,
-                    draw_gates,
                 )
                     .run_if(resource_equals::<DrawInspector>(DrawInspector(true))),
             );
@@ -265,29 +264,5 @@ fn draw_active_chests(
                 gizmos.circle(transform.translation, Dir3::Z, 1f32, COLOR);
             }
         }
-    }
-}
-
-/// Draw world gates
-///
-/// # System overview
-///
-/// 1. Get all entities with a [`Gate`] component
-/// 2. Assume the gate is a ball
-/// 3. Draw a gate with size according to the ball radius
-///
-/// # Panics
-///
-/// If the collider is not a ball
-fn draw_gates(mut gizmos: Gizmos, gates: Query<(&Gate, &Transform, &Collider)>) {
-    /// Purple
-    const COLOR: Color = Color::srgb(0.7, 0.2, 1.0);
-    for (_, transform, collider) in gates.iter() {
-        gizmos.sphere(
-            transform.translation,
-            default(),
-            collider.shape().as_ball().unwrap().radius,
-            COLOR,
-        );
     }
 }
