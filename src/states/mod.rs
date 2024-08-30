@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use bevy::{asset::AssetPath, prelude::*};
+use bevy::prelude::*;
 
 // use crate::prelude::UniverseDescription;
 

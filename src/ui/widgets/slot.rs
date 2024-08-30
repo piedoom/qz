@@ -1,8 +1,6 @@
 use crate::prelude::*;
-use bevy::prelude::World;
-use bevy_egui::egui::*;
 
-use super::Bar;
+use bevy_egui::egui::*;
 
 /// Health bar, shields, etc.
 pub struct Slot<'a> {
@@ -24,18 +22,20 @@ impl<'a> Widget for Slot<'a> {
             capacity,
         } = self;
         let (mut rect, response) = ui.allocate_at_least(size, Sense::hover());
-        let painter = ui.painter();
+        {
+            let painter = ui.painter();
 
-        // Paint the widget background
-        painter.rect_filled(rect, 0f32, Color32::DARK_GRAY);
+            // Paint the widget background
+            painter.rect_filled(rect, 0f32, Color32::DARK_GRAY);
 
-        painter.text(
-            rect.center_top(),
-            Align2::CENTER_TOP,
-            equipment_type_id,
-            FontId::proportional(16f32),
-            Color32::GREEN,
-        );
+            painter.text(
+                rect.center_top(),
+                Align2::CENTER_TOP,
+                equipment_type_id,
+                FontId::proportional(16f32),
+                Color32::GREEN,
+            );
+        }
 
         // adjust the rect to give the top title thing some room
         rect.set_top(rect.top() + 24f32);
@@ -54,6 +54,9 @@ impl<'a> Widget for Slot<'a> {
                 item_rect.set_bottom(rect.top() + ((i + 1) as f32 * item_height));
                 item_rect
             };
+
+            let item_response = ui.allocate_rect(item_rect, Sense::click());
+            let painter = ui.painter_at(item_rect);
 
             match maybe_equipped {
                 Some((item, entity)) => {

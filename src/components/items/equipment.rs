@@ -61,6 +61,19 @@ impl Equipped {
                     .mass
             })
     }
+
+    pub fn get_by_type(
+        &self,
+        equipment_type_id: EquipmentTypeId,
+    ) -> impl Iterator<Item = &HashSet<Entity>> {
+        self.iter().filter_map(move |x| {
+            if *x.0 == equipment_type_id {
+                Some(x.1)
+            } else {
+                None
+            }
+        })
+    }
 }
 
 /// Build an `Equipped` with starting items

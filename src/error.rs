@@ -108,4 +108,6 @@ pub enum EquipmentError {
     /// Slot not available (full or does not exist)
     #[error("slot not available")]
     SlotNotAvailable,
+    #[error("parent of specified equip doesn't exist or is invalid")]
+    InvalidEquipParent,
 }

@@ -1,8 +1,11 @@
 use std::time::Duration;
 
 use bevy::{asset::AssetPath, prelude::*};
-use petgraph::graph::NodeIndex;
 use serde::{Deserialize, Serialize};
+
+/// Hostile target to attack
+#[derive(Component, Reflect, Serialize, Deserialize)]
+pub struct Target(pub Entity);
 
 /// Despawns an entity after a specified length of time
 #[derive(Component, Reflect, Serialize, Deserialize)]
@@ -51,9 +54,6 @@ impl Model {
         self.offset
     }
 }
-
-#[derive(Component, Reflect, Serialize, Deserialize, Clone)]
-pub struct MoveToGate(pub NodeIndex);
 
 /// Added to entities that should persist
 #[derive(Component, Reflect, Serialize, Deserialize, Clone)]

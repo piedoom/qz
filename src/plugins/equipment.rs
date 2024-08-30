@@ -14,10 +14,11 @@ impl Plugin for EquipmentPlugin {
                 handle_energy,
                 manage_overheating,
                 manage_equipped_builders.run_if(resource_exists::<Library>),
-                manage_equipment.pipe(handle_errors::<EquipmentError>),
             )
                 .run_if(in_state(AppState::main())),
-        );
+        )
+        .observe(on_equip.pipe(handle_errors::<EquipmentError>))
+        .observe(on_unequip.pipe(handle_errors::<EquipmentError>));
     }
 }
 
@@ -70,83 +71,69 @@ fn handle_energy(
     }
 }
 
-/// Manage equip and unequip events
-///
-/// # System overview
-///
-/// 1. Loop over equip events
-/// 2. If an `Equip`, attempt to get the entity's [`Equipped`] and equip the item, managing the inventory
-/// 3. Add [`Equipment`] as child entities of the parent
-fn manage_equipment(
+fn on_equip(
+    trigger: Trigger<triggers::Equip>,
     mut cmd: Commands,
-    mut events: EventReader<events::EquipEvent>,
     mut inventories: Query<&mut Inventory>,
-    equipped: Query<&Equipped>,
-    equipments: Query<&Equipment>,
     items: Res<Assets<Item>>,
+    equipped: Query<&Equipped>,
 ) -> Result<(), EquipmentError> {
-    for event in events.read() {
-        match event {
-            events::EquipEvent::Equip {
-                entity: parent_entity,
-                item,
-                transfer_from_inventory,
-            } => {
-                // Skip if the entity doesn't exist
-                if cmd.get_entity(*parent_entity).is_none() {
-                    continue;
-                }
+    let triggers::Equip {
+        entity: parent_entity,
+        item,
+        transfer_from_inventory,
+    } = trigger.event();
 
-                // get the inventory and equipped components of the given entity
-                let equipped = equipped.get(*parent_entity)?;
+    // get the inventory and equipped components of the given entity
+    let equipped = equipped.get(*parent_entity)?;
 
-                // Test that there is a slot available
-                let retrieved_item = items.get(item).unwrap().clone();
-                let id = retrieved_item.equipment.unwrap().id();
-                if equipped.slots_remaining(&id) != 0 {
-                    if *transfer_from_inventory {
-                        // Remove item from inventory
-                        let mut inventory = inventories.get_mut(*parent_entity)?;
-                        inventory.remove(item, retrieved_item.size, 1)?;
-                    }
-                    // Add equip as a child
-                    let equipment_entity = cmd.spawn(()).id();
-                    cmd.entity(*parent_entity).add_child(equipment_entity);
-                    cmd.entity(equipment_entity)
-                        .set_parent(*parent_entity)
-                        .insert(Equipment::new(item.clone()));
-                } else {
-                    return Err(EquipmentError::SlotNotAvailable);
-                }
-            }
-            events::EquipEvent::Unequip {
-                entity,
-                equipment,
-                transfer_into_inventory,
-            } => {
-                // Skip if the entity doesn't exist
-                if cmd.get_entity(*entity).is_none() {
-                    continue;
-                }
-
-                // Silently fails if equipment entity not found
-                if *transfer_into_inventory {
-                    let eq = equipments.get(*equipment)?;
-                    let retrieved_item = items
-                        .get(&eq.handle())
-                        .ok_or(InventoryError::ItemNotFound)?;
-                    let mut inventory = inventories.get_mut(*entity)?;
-                    inventory.add(eq.handle(), retrieved_item.size, 1)?;
-                }
-                cmd.entity(*equipment).despawn_recursive();
-            }
+    // Test that there is a slot available
+    let retrieved_item = items.get(item).unwrap().clone();
+    let id = retrieved_item.equipment.unwrap().id();
+    if equipped.slots_remaining(&id) != 0 {
+        if *transfer_from_inventory {
+            // Remove item from inventory
+            let mut inventory = inventories.get_mut(*parent_entity)?;
+            inventory.remove(item, retrieved_item.size, 1)?;
         }
+        // Add equip as a child
+        let equipment_entity = cmd.spawn(()).id();
+        cmd.entity(*parent_entity).add_child(equipment_entity);
+        cmd.entity(equipment_entity)
+            .set_parent(*parent_entity)
+            .insert(Equipment::new(item.clone()));
+    } else {
+        return Err(EquipmentError::SlotNotAvailable);
     }
     Ok(())
 }
 
-// TODO: This is panicking when transitioning zones too fast. If its despawned the tick
-// after creation, this will panic. We should handle transitions more gracefully with states
+fn on_unequip(
+    trigger: Trigger<triggers::Unequip>,
+    mut cmd: Commands,
+    mut inventories: Query<&mut Inventory>,
+    equipments: Query<&Equipment>,
+    items: Res<Assets<Item>>,
+    parents: Query<&Parent>,
+) -> Result<(), EquipmentError> {
+    let triggers::Unequip {
+        equipment,
+        transfer_into_inventory,
+    } = trigger.event();
+    if *transfer_into_inventory {
+        let eq = equipments.get(*equipment)?;
+        let retrieved_item = items
+            .get(&eq.handle())
+            .ok_or(InventoryError::ItemNotFound)?;
+        // get parent entity
+        let entity = parents.get(*equipment)?.get();
+        let mut inventory = inventories.get_mut(entity)?;
+        inventory.add(eq.handle(), retrieved_item.size, 1)?;
+    }
+    cmd.entity(*equipment).despawn_recursive();
+    Ok(())
+}
+
 fn manage_equipped_builders(
     mut cmd: Commands,
     library: Res<Library>,

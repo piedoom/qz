@@ -1,21 +1,19 @@
 use crate::prelude::*;
 use avian3d::prelude::*;
 use bevy::prelude::*;
-use events::{EquipEvent, InventoryEvent};
 use rand::Rng;
 
 pub struct InventoryPlugin;
 
 impl Plugin for InventoryPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<InventoryEvent>()
-            .add_event::<EquipEvent>()
+        app.observe(on_transfer.pipe(handle_errors::<InventoryError>))
+            .observe(on_toss_overboard.pipe(handle_errors::<InventoryError>))
             .add_systems(
                 Update,
                 (
                     (
                         recalculate_inventory_equipment_mass,
-                        manage_inventory.pipe(handle_errors::<InventoryError>),
                         manage_drops.pipe(handle_errors::<InventoryError>),
                     )
                         .run_if(resource_exists::<Library>),
@@ -25,57 +23,56 @@ impl Plugin for InventoryPlugin {
     }
 }
 
-fn manage_inventory(
-    mut cmd: Commands,
+fn on_transfer(
+    trigger: Trigger<triggers::InventoryTransfer>,
     mut inventories: Query<&mut Inventory>,
-    mut events: EventReader<events::InventoryEvent>,
-    transforms: Query<&Transform>,
     items: Res<Assets<Item>>,
 ) -> Result<(), InventoryError> {
-    for event in events.read() {
-        match event {
-            InventoryEvent::Transfer {
-                from,
-                to,
-                item,
-                amount,
-            } => {
-                let [mut from, mut to] = inventories
-                    .get_many_mut([*from, *to])
-                    .map_err(|_| InventoryError::Unqueriable)?;
-                from.transfer(item.clone(), &mut to, *amount, &items)?;
-            }
-            InventoryEvent::TransferAll { from, to } => {
-                let [mut from, mut to] = inventories
-                    .get_many_mut([*from, *to])
-                    .map_err(|_| InventoryError::Unqueriable)?;
-                from.transfer_all(&mut to)?;
-            }
-            InventoryEvent::TossOverboard {
-                entity,
-                item,
-                amount,
-            } => {
-                let mut inventory = inventories.get_mut(*entity)?;
-                let retrieved_item = items.get(item).ok_or(InventoryError::ItemNotFound)?;
-                let transform = transforms.get(*entity)?;
+    let triggers::InventoryTransfer { from, to, transfer } = trigger.event();
+    let [mut from, mut to] = inventories
+        .get_many_mut([*from, *to])
+        .map_err(|_| InventoryError::Unqueriable)?;
 
-                inventory.remove(item, retrieved_item.size, *amount)?;
-
-                // Spawn tossed stuff in a chest
-                cmd.spawn((
-                    Chest,
-                    Inventory::max_capacity().with(item.clone(), *amount, &items)?,
-                    *transform,
-                    Collider::cuboid(0.5, 0.5, 0.5),
-                    CollisionLayers {
-                        memberships: PhysicsCategory::Item.into(),
-                        filters: LayerMask::NONE,
-                    },
-                ));
-            }
+    match transfer {
+        triggers::InventoryTransferSettings::Item { item, quantity } => {
+            from.transfer(item.clone(), &mut to, *quantity, &items)?;
+        }
+        triggers::InventoryTransferSettings::All => {
+            from.transfer_all(&mut to)?;
         }
     }
+    Ok(())
+}
+
+fn on_toss_overboard(
+    trigger: Trigger<triggers::TossItemOverboard>,
+    mut cmd: Commands,
+    mut inventories: Query<&mut Inventory>,
+    items: Res<Assets<Item>>,
+    transforms: Query<&Transform>,
+) -> Result<(), InventoryError> {
+    let triggers::TossItemOverboard {
+        entity,
+        item,
+        quantity,
+    } = trigger.event();
+    let mut inventory = inventories.get_mut(*entity)?;
+    let retrieved_item = items.get(item).ok_or(InventoryError::ItemNotFound)?;
+    let transform = transforms.get(*entity)?;
+
+    inventory.remove(item, retrieved_item.size, *quantity)?;
+
+    // Spawn tossed stuff in a chest
+    cmd.spawn((
+        Chest,
+        Inventory::max_capacity().with(item.clone(), *quantity, &items)?,
+        *transform,
+        Collider::cuboid(0.5, 0.5, 0.5),
+        CollisionLayers {
+            memberships: PhysicsCategory::Item.into(),
+            filters: LayerMask::NONE,
+        },
+    ));
     Ok(())
 }
 
@@ -189,7 +186,7 @@ fn update_chests_in_range(
                 &Collider::cylinder(chest_in_range.range, 1f32),
                 transform.translation,
                 Transform::default_z().rotation,
-                &SpatialQueryFilter {
+                SpatialQueryFilter {
                     mask: LayerMask::from(PhysicsCategory::Item),
                     excluded_entities: [].into(),
                 },

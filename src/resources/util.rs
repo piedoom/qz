@@ -1,21 +1,15 @@
 use std::path::PathBuf;
 
-use bevy::{asset::AssetPath, prelude::*, utils::HashSet};
+use bevy::{prelude::*, utils::HashSet};
 use serde::{Deserialize, Serialize};
 /// Determines whether to draw debug UI
 #[derive(Default, Resource, Deref, DerefMut, PartialEq, Eq)]
 pub struct DrawInspector(pub bool);
 
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub struct Chunks {
     /// Chunks that are already loaded and spawned into the game
     loaded: HashSet<ChunkIndex>,
-}
-
-impl Chunks {
-    pub fn new() -> Self {
-        Self { loaded: default() }
-    }
 }
 
 impl Chunks {
@@ -38,7 +32,7 @@ impl ChunkIndex {
         let coord = self.0 * CHUNK_SIZE as i32;
         Vec2::new(coord.x as f32, coord.y as f32)
     }
-    fn from_world_coordinates(value: Vec2) -> Self {
+    pub fn from_world_coordinates(value: Vec2) -> Self {
         let coord = (value / Vec2::splat(CHUNK_SIZE as f32)).round();
         Self(IVec2::new(coord.x as i32, coord.y as i32))
     }

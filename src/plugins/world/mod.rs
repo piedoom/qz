@@ -5,18 +5,10 @@ mod creature;
 use std::{f32::consts::TAU, time::Duration};
 
 use crate::prelude::*;
-use avian3d::prelude::*;
-use bevy::{
-    core_pipeline::bloom::BloomSettings,
-    pbr::{NotShadowCaster, NotShadowReceiver, VolumetricLight},
-    prelude::*,
-};
-use bevy_turborand::prelude::*;
+use bevy::prelude::*;
 use building::*;
 use chunk::*;
 use creature::*;
-use leafwing_input_manager::InputManagerBundle;
-use petgraph::graph::NodeIndex;
 use rand::{seq::*, Rng};
 
 pub struct WorldPlugin;

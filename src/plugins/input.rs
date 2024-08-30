@@ -1,6 +1,6 @@
 use crate::prelude::*;
 use bevy::{prelude::*, window::PrimaryWindow};
-use events::{DockEvent, InventoryEvent};
+use events::DockEvent;
 use leafwing_input_manager::prelude::*;
 
 pub struct InputPlugin;
@@ -94,6 +94,7 @@ fn apply_app_input(mut draw_inspector: ResMut<DrawInspector>, input: Res<ActionS
 
 /// Apply desired input to the player controller
 fn apply_player_input(
+    mut cmd: Commands,
     mut players: Query<
         (
             Entity,
@@ -108,7 +109,6 @@ fn apply_player_input(
         With<Player>,
     >,
     mut weapons: Query<&mut Weapon>,
-    mut inventory_events: EventWriter<InventoryEvent>,
     mut dock_events: EventWriter<DockEvent>,
     mut credits: Query<&mut Credits>,
     camera: Query<(&Camera, &GlobalTransform)>,
@@ -181,9 +181,10 @@ fn apply_player_input(
                     chest_credits.transfer(&mut player_credits, amount).unwrap();
                 } else {
                     // item chest
-                    inventory_events.send(InventoryEvent::TransferAll {
+                    cmd.trigger(triggers::InventoryTransfer {
                         from: *chest,
                         to: player_entity,
+                        transfer: triggers::InventoryTransferSettings::All,
                     });
                 }
             }

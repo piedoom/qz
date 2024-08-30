@@ -59,7 +59,7 @@ pub(crate) fn attack(
 /// 1. Get all entities that want to persue
 /// 2. If state is requested, set the waypoint to the nearest enemy in range
 /// 3. When cancelled or otherwise ended, the waypoint is removed
-pub(crate) fn persue(
+pub(crate) fn persue_enemies(
     mut cmd: Commands,
     mut actors: Query<(&Actor, &mut ActionState), With<actions::Persue>>,
     actor_query: Query<&InRange>,
@@ -74,7 +74,10 @@ pub(crate) fn persue(
                         .get(actor.0)
                         .map(|in_range| {
                             in_range.enemies.first().map(|enemy| {
-                                cmd.entity(actor.0).insert(Waypoint::Entity(*enemy));
+                                cmd.entity(actor.0)
+                                    .insert(Waypoint::Entity(*enemy))
+                                    .insert(Target(*enemy));
+
                                 ActionState::Executing
                             })
                         })
@@ -86,7 +89,7 @@ pub(crate) fn persue(
             ActionState::Cancelled => Some(ActionState::Success),
             ActionState::Failure | ActionState::Success => {
                 // remove the waypoint
-                cmd.entity(actor.0).remove::<Waypoint>();
+                cmd.entity(actor.0).remove::<Waypoint>().remove::<Target>();
                 None
             }
             _ => None,
@@ -101,21 +104,35 @@ pub(crate) fn idle(
     mut cmd: Commands,
     mut actors: Query<(&Actor, &mut ActionState), With<actions::Idle>>,
     mut rng: ResMut<GlobalRng>,
+    global_transforms: Query<&GlobalTransform>,
     waypoints: Query<&Waypoint>,
     spawned_from: Query<&SpawnedFrom>,
-    transforms: Query<&Transform>,
+    // transforms: Query<&Transform>,
 ) {
     const RADIUS_FROM: f32 = 12f32;
     const TOLERANCE_RADIUS: f32 = 1f32;
     for (Actor(entity), mut state) in actors.iter_mut() {
         let new_state = match state.as_ref() {
-            ActionState::Requested => Some(ActionState::Executing),
+            ActionState::Requested => {
+                cmd.entity(*entity).insert(Waypoint::Position(
+                    global_transforms
+                        .get(*entity)
+                        .unwrap()
+                        .compute_transform()
+                        .translation
+                        .truncate(),
+                ));
+                Some(ActionState::Executing)
+            }
             ActionState::Executing => {
-                let entity_transform = *transforms.get(*entity).unwrap();
+                let entity_transform = global_transforms.get(*entity).unwrap().compute_transform();
                 let maybe_waypoint_transform = waypoints
                     .get(*entity)
                     .and_then(|w| match w {
-                        Waypoint::Entity(e) => transforms.get(*e).copied(),
+                        Waypoint::Entity(e) => global_transforms
+                            .get(*e)
+                            .copied()
+                            .map(|x| x.compute_transform()),
                         Waypoint::Position(p) => Ok(Transform::from_translation(p.extend(0f32))),
                     })
                     .ok();
@@ -141,13 +158,16 @@ pub(crate) fn idle(
                             // Find a random point to set as a waypoint. If this entity was spawned
                             // from another entity, we'll attempt to find a point close to the spawner
                             Ok(SpawnedFrom(spawned_from)) => {
-                                let spawned_transform = transforms.get(*spawned_from).unwrap();
-                                set_random_from_transform(spawned_transform, &mut rng);
+                                let spawned_transform = global_transforms
+                                    .get(*spawned_from)
+                                    .unwrap()
+                                    .compute_transform();
+                                set_random_from_transform(&spawned_transform, &mut rng);
                             }
                             Err(_) => {
                                 // Go to a random relative position
-                                let actor_transform = Transform::default_z()
-                                    .with_translation(transforms.get(*entity).unwrap().translation);
+                                let actor_transform =
+                                    global_transforms.get(*entity).unwrap().compute_transform();
                                 set_random_from_transform(&actor_transform, &mut rng);
                             }
                         }

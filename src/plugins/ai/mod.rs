@@ -18,12 +18,14 @@ impl Plugin for AiPlugin {
             // Scorers
             .add_systems(
                 PreUpdate,
-                (scorers::facing_scorer).in_set(BigBrainSet::Scorers),
+                (scorers::facing_scorer, scorers::target_in_range_scorer)
+                    .in_set(BigBrainSet::Scorers),
             )
             // Actions
             .add_systems(
                 PreUpdate,
-                (actions::attack, actions::persue, actions::idle).in_set(BigBrainSet::Actions),
+                (actions::attack, actions::persue_enemies, actions::idle)
+                    .in_set(BigBrainSet::Actions),
             );
     }
 }
@@ -44,7 +46,7 @@ fn update_in_range(
                 &Collider::cylinder(in_range.range, 1f32),
                 transform.translation,
                 Transform::default_z().rotation,
-                &SpatialQueryFilter {
+                SpatialQueryFilter {
                     mask: LayerMask::from([PhysicsCategory::Craft, PhysicsCategory::Structure]),
                     excluded_entities: [entity].into(),
                 },
@@ -92,11 +94,18 @@ pub(crate) fn move_towards_waypoint(
                     transform.calculate_turn_angle(target_transform.translation.truncate());
 
                 controller.angular_thrust = turn.into();
+
+                // Adjust turning
                 if angle < 20f32.to_radians() {
-                    controller.thrust = 1f32;
                     controller.angular_thrust = 0f32;
+                }
+
+                // Adjust braking and thrusting
+                if angle < 40f32.to_radians() {
+                    controller.thrust = 1f32;
                 } else {
-                    controller.thrust = 0f32
+                    controller.thrust = 0f32;
+                    controller.brake = 1f32;
                 }
             }
         }

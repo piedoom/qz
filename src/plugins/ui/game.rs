@@ -2,21 +2,19 @@ use crate::prelude::*;
 use avian3d::prelude::Collider;
 use bevy::prelude::*;
 use bevy_egui::{
-    egui::{self, Align2, Color32},
+    egui::{self, Align2, Color32, Frame, RichText, Stroke},
     EguiContexts,
 };
+use widgets::Bar;
 
 pub(super) fn draw_ui(
+    mut cmd: Commands,
     mut contexts: EguiContexts,
-    mut events: EventWriter<events::EquipEvent>,
-    mut inv_events: EventWriter<events::InventoryEvent>,
     mut selected_item: Local<Option<Item>>,
     mut store_events: EventWriter<events::StoreEvent>,
     mut next_state: ResMut<NextState<AppState>>,
     mut current_save: ResMut<SavePath>,
-
-    state: Res<State<AppState>>,
-    equipment: Query<&Equipment>,
+    heat: Query<&Heat>,
     item_handles: Query<&Handle<Item>>,
     items: Res<Assets<Item>>,
     inventories: Query<&Inventory>,
@@ -41,13 +39,13 @@ pub(super) fn draw_ui(
     if let Ok((
         player_entity,
         energy,
-        player_inventory,
+        _player_inventory,
         equipped,
-        chests_in_range,
+        _chests_in_range,
         health,
         damage,
-        maybe_docked,
-        credits,
+        _maybe_docked,
+        _credits,
     )) = player.get_single()
     {
         // allocate space near the bottom of the screen
@@ -95,19 +93,68 @@ pub(super) fn draw_ui(
                         //     .chunk_by(|(a, _), (b, _)| a == b)
                         // {}
                         for (equipment_type_id, entities) in equipped.iter() {
-                            ui.add(widgets::Slot {
-                                equipment_type_id: *equipment_type_id,
-                                size: egui::Vec2::new(100f32, size.y),
-                                equipped: entities
-                                    .iter()
-                                    .map(|entity| {
-                                        let equip = item_handles.get(*entity).unwrap();
-                                        let item = items.get(equip).unwrap();
-                                        (item, *entity)
-                                    })
-                                    .collect(),
-                                capacity: equipped.capacity(equipment_type_id),
-                            });
+                            Frame::default()
+                                .fill(Color32::BLACK)
+                                .stroke(Stroke::new(2f32, Color32::GREEN))
+                                .show(ui, |ui| {
+                                    ui.vertical(|ui| {
+                                        ui.heading(equipment_type_id.to_string());
+                                        // Loop
+                                        for i in 0..equipped.capacity(equipment_type_id) {
+                                            let maybe_entity = entities.iter().nth(i);
+                                            match maybe_entity {
+                                                Some(equip_entity) => {
+                                                    // equip slot in use
+                                                    let equip =
+                                                        item_handles.get(*equip_entity).unwrap();
+                                                    let item = items.get(equip).unwrap();
+                                                    ui.horizontal(|ui| {
+                                                        ui.label(
+                                                            RichText::new(item.name.clone())
+                                                                .color(Color32::GREEN),
+                                                        );
+                                                        if ui.button("X").clicked() {
+                                                            cmd.trigger(triggers::Unequip {
+                                                                equipment: *equip_entity,
+                                                                transfer_into_inventory: true,
+                                                            })
+                                                        }
+                                                    });
+
+                                                    // Show heat if applicable
+                                                    if let Ok(heat) = heat.get(*equip_entity) {
+                                                        ui.add(Bar {
+                                                            size: (100f32, 3f32).into(),
+                                                            range: 0f32..=1f32,
+                                                            value: heat.get(),
+                                                            stroke: Stroke::NONE,
+                                                            fill: Color32::RED,
+                                                            ..Default::default()
+                                                        });
+                                                    }
+                                                }
+                                                None => {
+                                                    // none equipped
+                                                    ui.label("Empty");
+                                                }
+                                            }
+                                        }
+                                    });
+                                });
+
+                            // ui.add(widgets::Slot {
+                            //     equipment_type_id: *equipment_type_id,
+                            //     size: egui::Vec2::new(100f32, size.y),
+                            //     equipped: entities
+                            //         .iter()
+                            //         .map(|entity| {
+                            //             let equip = item_handles.get(*entity).unwrap();
+                            //             let item = items.get(equip).unwrap();
+                            //             (item, *entity)
+                            //         })
+                            //         .collect(),
+                            //     capacity: equipped.capacity(equipment_type_id),
+                            // });
                         }
                     });
                 });
@@ -118,7 +165,7 @@ pub(super) fn draw_ui(
                 player_entity,
                 _energy,
                 player_inventory,
-                equipped,
+                _equipped,
                 chests_in_range,
                 _health,
                 _damage,
@@ -136,47 +183,6 @@ pub(super) fn draw_ui(
 
                 ui.separator();
 
-                ui.heading("Equipment");
-                // ui.heading(format!(
-                //     "Equipment ({}/{})",
-                //     equipment.inventory.space_occupied(),
-                //     equipment.inventory.capacity()
-                // ));
-                for chunk in equipped
-                    .equipped
-                    .iter()
-                    .collect::<Vec<_>>()
-                    .chunk_by(|a, b| a.0 == b.0)
-                {
-                    for (equipment_id, entities) in chunk.iter() {
-                        ui.vertical(|ui| {
-                            ui.heading(equipment_id.to_string());
-                            for equipment_entity in entities.iter() {
-                                let handle = equipment.get(*equipment_entity).unwrap().handle();
-                                let retrieved_item = items
-                                    .get(&handle)
-                                    .ok_or(InventoryError::ItemNotFound)
-                                    .unwrap();
-                                ui.horizontal(|ui| {
-                                    ui.label(retrieved_item.name.to_string());
-
-                                    if ui.button("Inspect").clicked() {
-                                        *selected_item = Some(retrieved_item.clone());
-                                    }
-
-                                    if ui.button("Unequip").clicked() {
-                                        events.send(events::EquipEvent::Unequip {
-                                            entity: player_entity,
-                                            equipment: *equipment_entity,
-                                            transfer_into_inventory: true,
-                                        });
-                                    }
-                                });
-                            }
-                        });
-                    }
-                }
-
                 ui.heading(format!(
                     "Inventory ({}/{})",
                     player_inventory.space_occupied(),
@@ -191,10 +197,10 @@ pub(super) fn draw_ui(
                                 ui.label(format!("{} {}", retrieved_item.name, count));
 
                                 if ui.button("Toss").clicked() {
-                                    inv_events.send(events::InventoryEvent::TossOverboard {
+                                    cmd.trigger(triggers::TossItemOverboard {
                                         entity: player_entity,
                                         item: item.clone(),
-                                        amount: 1,
+                                        quantity: 1,
                                     });
                                 }
 
@@ -205,7 +211,7 @@ pub(super) fn draw_ui(
                                 if retrieved_item.equipment.is_some()
                                     && ui.button("Equip").clicked()
                                 {
-                                    events.send(events::EquipEvent::Equip {
+                                    cmd.trigger(triggers::Equip {
                                         entity: player_entity,
                                         item: item.clone(),
                                         transfer_from_inventory: true,
@@ -228,11 +234,13 @@ pub(super) fn draw_ui(
                                 ui.horizontal(|ui| {
                                     ui.label(format!("{} {}", retrieved_item.name, amount));
                                     if ui.button("Take").clicked() {
-                                        inv_events.send(events::InventoryEvent::Transfer {
+                                        cmd.trigger(triggers::InventoryTransfer {
                                             from: *chest,
                                             to: player_entity,
-                                            item: item.clone(),
-                                            amount: *amount,
+                                            transfer: triggers::InventoryTransferSettings::Item {
+                                                item: item.clone(),
+                                                quantity: *amount,
+                                            },
                                         });
                                     }
                                     if ui.button("Inspect").clicked() {

@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 leafwing-input-manager = { git = "https://github.com/Leafwing-Studios/leafwing-input-manager/" }
-bevy = { version = "0.14", features = ["serialize"], default-features = true }
+bevy = { version = "0.14.1", features = ["serialize"], default-features = true }
 serde = "1"
 bevy_common_assets = { version = "0.11", features = ["ron"] }
 bevy_asset_loader = { version = "0.21", features = [
@@ -15,7 +15,7 @@ bevy_asset_loader = { version = "0.21", features = [
     "3d",
     "standard_dynamic_assets",
 ] }
-avian3d = { git = "https://github.com/Jondolf/avian" } # git fixes centerpoint sensor issue
+avian3d = { version = "0.1.2" } # git fixes centerpoint sensor issue
 bitflags = "2.6.0"
 thiserror = "1.0.61"
 

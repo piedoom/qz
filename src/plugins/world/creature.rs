@@ -2,7 +2,7 @@ use crate::prelude::*;
 use avian3d::prelude::*;
 use bevy::{prelude::*, utils::HashMap};
 use bevy_turborand::prelude::*;
-use big_brain::prelude::*;
+use big_brain::{pickers, prelude::*};
 
 pub(super) fn on_spawn_creature(
     trigger: Trigger<triggers::SpawnCreature>,
@@ -80,17 +80,24 @@ pub(super) fn on_spawn_creature(
 
     ent.insert(
         Thinker::build()
-            .picker(FirstToScore { threshold: 0.8 })
-            .when(
-                scorers::Facing,
-                Concurrently::build()
-                    .push(actions::Attack)
-                    .push(actions::Persue),
-            )
-            .when(
-                EvaluatingScorer::build(scorers::Facing, LinearEvaluator::new_inversed()),
-                actions::Persue,
-            )
+            .picker(pickers::Highest)
+            // .when(
+            //     AllOrNothing::build(0.01f32)
+            //         .push(scorers::Facing)
+            //         .push(scorers::TargetInRange),
+            //     Concurrently::build()
+            //         .push(actions::Attack)
+            //         .push(actions::Persue),
+            // )
+            // .when(
+            //     AllOrNothing::build(0.01f32)
+            //         .push(EvaluatingScorer::build(
+            //             scorers::Facing,
+            //             LinearEvaluator::new_inversed(),
+            //         ))
+            //         .push(scorers::TargetInRange),
+            //     actions::Persue,
+            // )
             .otherwise(actions::Idle),
         // .when(
         //     scorers::Danger {

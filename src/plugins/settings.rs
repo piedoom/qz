@@ -17,7 +17,6 @@ impl Plugin for SettingsPlugin {
 /// 2. We might want to do some app/window level changes, like quality
 ///    adjustments or (as shown here) changing the window mode
 fn react_to_settings_change(
-    mut cmd: Commands,
     mut settings_asset_events: EventReader<AssetEvent<Settings>>,
     mut window: Query<&mut Window>,
     settings_assets: Res<Assets<Settings>>,

@@ -1,7 +1,4 @@
-use std::{
-    fs::{create_dir_all, File},
-    io::Write,
-};
+use std::{fs::File, io::Write};
 
 use avian3d::prelude::{
     AngularVelocity, Collider, ColliderConstructor, CollisionLayers, ExternalImpulse, Friction,
@@ -276,7 +273,7 @@ fn enter_load_game(
 }
 
 /// Wait for the loaded savegame to deserialize, then spawn the world
-pub fn continue_loading(
+fn continue_loading(
     mut cmd: Commands,
     mut next_state: ResMut<NextState<AppState>>,
     state: Res<State<AppState>>,
@@ -387,14 +384,12 @@ pub fn enter_new_game(
     mut cmd: Commands,
     mut save_path: ResMut<SavePath>,
     mut next_state: ResMut<NextState<AppState>>,
-    mut meshes: ResMut<Assets<Mesh>>,
     mut factions: ResMut<Factions>,
     directories: Res<Directories>,
     crafts: Res<Assets<Craft>>,
     library: Res<Library>,
-    assets: Res<AssetServer>,
 ) {
-    cmd.insert_resource(Chunks::new());
+    cmd.insert_resource(Chunks::default());
     // Set the new save path
     let save_name = format!(
         "{}-{}.save.ron",

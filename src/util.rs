@@ -1,15 +1,10 @@
-use std::{
-    ops::{RangeBounds, RangeInclusive},
-    path::PathBuf,
-};
+use std::ops::{RangeBounds, RangeInclusive};
 
 use avian3d::prelude::PhysicsLayer;
 use bevy::{
-    asset::AssetPath,
     ecs::{component::ComponentId, world::DeferredWorld},
     prelude::*,
 };
-use bevy_etcetera::Directories;
 
 use crate::{prelude::*, resources::Library};
 

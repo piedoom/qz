@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::prelude::*;
 
 /// only `items` count towards the `max_size`. Equipment does not affect this.
-#[derive(Debug, Clone, Component, Reflect)]
+#[derive(Component, Debug, Clone, Reflect)]
 pub struct Inventory {
     /// Maximum size of the inventory, determined by the craft (so it is not serialized)
     capacity: usize,

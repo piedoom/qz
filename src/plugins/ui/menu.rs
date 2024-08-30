@@ -4,7 +4,6 @@ use bevy_egui::*;
 use bevy_etcetera::Directories;
 
 pub(super) fn draw_main_menu(
-    mut cmd: Commands,
     mut contexts: EguiContexts,
     mut state: ResMut<NextState<AppState>>,
     directories: Res<Directories>,
@@ -18,13 +17,12 @@ pub(super) fn draw_main_menu(
         for dir in directories.data_dir().read_dir().unwrap() {
             let dir = dir.unwrap();
             if let Some(extension) = dir.path().extension() {
-                if extension.to_os_string().to_str() == Some("ron") {
-                    if ui
+                if extension.to_os_string().to_str() == Some("ron")
+                    && ui
                         .button(format!("Load: {}", dir.file_name().into_string().unwrap()))
                         .clicked()
-                    {
-                        state.set(AppState::LoadGame { path: dir.path() });
-                    }
+                {
+                    state.set(AppState::LoadGame { path: dir.path() });
                 }
             }
         }
