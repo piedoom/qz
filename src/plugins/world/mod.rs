@@ -6,6 +6,10 @@ use std::{f32::consts::TAU, time::Duration};
 
 use crate::prelude::*;
 use bevy::prelude::*;
+use bevy_htnp::{
+    data::WorldState,
+    prelude::{HtnAgent, HtnAgentCurrentTask, HtnAgentPlan, HtnAgentState, HtnAgentWorld},
+};
 use building::*;
 use chunk::*;
 use creature::*;
@@ -34,7 +38,6 @@ impl Plugin for WorldPlugin {
             .register_type::<components::Energy>()
             .register_type::<components::Equipped>()
             .register_type::<components::EquippedBuilder>()
-            .register_type::<components::InventoryBuilder>()
             .register_type::<components::EquipmentType>()
             .register_type::<components::Faction>()
             .register_type::<Factions>()
@@ -42,6 +45,7 @@ impl Plugin for WorldPlugin {
             .register_type::<components::Heat>()
             .register_type::<components::InRange>()
             .register_type::<components::Inventory>()
+            .register_type::<components::InventoryBuilder>()
             .register_type::<components::Item>()
             .register_type::<components::Lifetime>()
             .register_type::<components::Model>()
@@ -53,8 +57,15 @@ impl Plugin for WorldPlugin {
             .register_type::<components::SpawnedFrom>()
             .register_type::<components::Spawner>()
             .register_type::<components::Structure>()
+            .register_type::<components::Waypoint>()
             .register_type::<components::Weapon>()
             .register_type::<components::WeaponType>()
+            .register_type::<WorldState>()
+            .register_type::<HtnAgent>()
+            .register_type::<HtnAgentWorld>()
+            .register_type::<HtnAgentState>()
+            .register_type::<HtnAgentPlan>()
+            .register_type::<HtnAgentCurrentTask>()
             .insert_resource(ClearColor(Color::BLACK))
             .insert_resource(AmbientLight {
                 color: Color::WHITE,

@@ -1,8 +1,12 @@
 use crate::prelude::*;
 use avian3d::prelude::*;
 use bevy::{prelude::*, utils::HashMap};
+use bevy_htnp::{
+    data::{Requirements, WorldState},
+    prelude::{HtnAgent, HtnAgentWorld},
+    tasks::Task,
+};
 use bevy_turborand::prelude::*;
-use big_brain::{pickers, prelude::*};
 
 pub(super) fn on_spawn_creature(
     trigger: Trigger<triggers::SpawnCreature>,
@@ -67,6 +71,8 @@ pub(super) fn on_spawn_creature(
         Drops(drops),
         InRange::new(range),
         Name::new(name),
+        task::Search,
+        Waypoint::None,
     ));
 
     if let Some(spawner) = spawner {
@@ -78,32 +84,25 @@ pub(super) fn on_spawn_creature(
         ent.insert(Credits::new(credits));
     }
 
-    ent.insert(
-        Thinker::build()
-            .picker(pickers::Highest)
-            // .when(
-            //     AllOrNothing::build(0.01f32)
-            //         .push(scorers::Facing)
-            //         .push(scorers::TargetInRange),
-            //     Concurrently::build()
-            //         .push(actions::Attack)
-            //         .push(actions::Persue),
-            // )
-            // .when(
-            //     AllOrNothing::build(0.01f32)
-            //         .push(EvaluatingScorer::build(
-            //             scorers::Facing,
-            //             LinearEvaluator::new_inversed(),
-            //         ))
-            //         .push(scorers::TargetInRange),
-            //     actions::Persue,
-            // )
-            .otherwise(actions::Idle),
-        // .when(
-        //     scorers::Danger {
-        //         radius: 3f32..=15f32,
-        //     },
-        //     actions::Retreat,
-        // ),
+    let mut agent = HtnAgent::new();
+
+    agent.add_task(Task::primitive(task::Search::NAME));
+    agent.add_task(Task::primitive(task::Attack::NAME));
+    agent.add_task(Task::primitive(task::Persue::NAME));
+
+    agent.add_goal(
+        "Destroy enemy",
+        Requirements::new()
+            .req_equals(Requirement::TargetDestroyed.name(), true)
+            .build(),
+        1.0,
     );
+
+    let default_world_state = WorldState::new()
+        .add(Requirement::EnemiesInView.name(), false)
+        .add(Requirement::TargetInWeaponsRange.name(), false)
+        .add(Requirement::TargetDestroyed.name(), false)
+        .build();
+
+    ent.insert((agent, HtnAgentWorld(default_world_state)));
 }

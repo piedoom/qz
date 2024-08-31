@@ -1,32 +1,38 @@
 use crate::prelude::*;
 use avian3d::prelude::*;
 use bevy::prelude::*;
-use big_brain::BigBrainSet;
+use bevy_htnp::prelude::*;
 
-/// Utility AI actions
-mod actions;
-
-/// Utility AI scorers
-mod scorers;
+mod requirements;
+mod tasks;
 
 /// Plugin for Utility AI logic
 pub struct AiPlugin;
 
 impl Plugin for AiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (update_in_range, move_towards_waypoint))
-            // Scorers
+        app.insert_resource(tasks::generate_task_registry())
             .add_systems(
-                PreUpdate,
-                (scorers::facing_scorer, scorers::target_in_range_scorer)
-                    .in_set(BigBrainSet::Scorers),
-            )
-            // Actions
-            .add_systems(
-                PreUpdate,
-                (actions::attack, actions::persue_enemies, actions::idle)
-                    .in_set(BigBrainSet::Actions),
+                Update,
+                (
+                    update_in_range,
+                    move_towards_waypoint,
+                    //
+                    requirements::enemies_in_view,
+                    requirements::target_in_weapons_range,
+                    //
+                    tasks::search,
+                    tasks::persue,
+                    tasks::attack,
+                    debug_goals,
+                ),
             );
+    }
+}
+
+fn debug_goals(agents: Query<&HtnAgent>) {
+    for agent in agents.iter() {
+        dbg!(&agent.current_plan);
     }
 }
 
@@ -88,6 +94,7 @@ pub(crate) fn move_towards_waypoint(
         if let Some(target_transform) = match waypoint {
             Waypoint::Entity(e) => transforms.get(*e).ok().cloned(),
             Waypoint::Position(p) => Some(Transform::from_translation(p.extend(0f32))),
+            Waypoint::None => continue,
         } {
             if let Ok(transform) = transforms.get(entity) {
                 let (turn, angle) =

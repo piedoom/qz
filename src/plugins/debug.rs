@@ -9,27 +9,21 @@ pub struct DebugPlugin;
 
 impl Plugin for DebugPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<DrawInspector>()
-            .add_plugins((
-                WorldInspectorPlugin::new()
-                    .run_if(resource_equals::<DrawInspector>(DrawInspector(true))),
-                // PhysicsDebugPlugin::default(),
-            ))
-            .add_systems(
-                Update,
-                (
-                    draw_controllers,
-                    draw_projectiles,
-                    draw_lasers,
-                    draw_health_and_damage,
-                    draw_structures,
-                    draw_destroyed,
-                    draw_chests,
-                    draw_active_chests,
-                    draw_grids,
-                )
-                    .run_if(resource_equals::<DrawInspector>(DrawInspector(true))),
-            );
+        app.init_resource::<DrawInspector>().add_systems(
+            Update,
+            (
+                draw_controllers,
+                draw_projectiles,
+                draw_lasers,
+                draw_health_and_damage,
+                draw_structures,
+                draw_destroyed,
+                draw_chests,
+                draw_active_chests,
+                draw_grids,
+            )
+                .run_if(resource_equals::<DrawInspector>(DrawInspector(true))),
+        );
     }
 }
 

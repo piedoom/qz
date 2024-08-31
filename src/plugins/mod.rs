@@ -16,10 +16,15 @@ mod world;
 use avian3d::{prelude::Gravity, PhysicsPlugins};
 use bevy::{app::PluginGroupBuilder, prelude::*};
 use bevy_egui::EguiPlugin;
+use bevy_htnp::prelude::HtnPlanningPlugin;
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_turborand::prelude::RngPlugin;
-use big_brain::BigBrainPlugin;
 
-use crate::{error::GameError, prelude::AppState, resources::Factions};
+use crate::{
+    error::GameError,
+    prelude::{AppState, DrawInspector},
+    resources::Factions,
+};
 
 /// Plugins required for displaying the game on a client device
 pub struct ClientPlugins;
@@ -37,7 +42,7 @@ impl PluginGroup for ClientPlugins {
             .add(EguiPlugin)
             .add(RngPlugin::default())
             .add(ClientInitPlugin)
-            .add(BigBrainPlugin::new(PreUpdate))
+            .add(HtnPlanningPlugin::new())
             // Crate
             .add(assets::AssetsPlugin)
             .add(settings::SettingsPlugin)

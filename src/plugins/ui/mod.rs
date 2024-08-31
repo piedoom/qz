@@ -18,9 +18,30 @@ impl Plugin for UiPlugin {
             (
                 (draw_ui, draw_toasts, draw_minimaps, draw_hud).run_if(in_state(AppState::main())),
                 (draw_main_menu,).run_if(in_state(AppState::menu())),
+                (inspector_ui,).run_if(resource_equals::<DrawInspector>(DrawInspector(true))),
             ),
         );
     }
+}
+
+fn inspector_ui(world: &mut World) {
+    let mut egui_context = world
+        .query_filtered::<&mut EguiContext, With<bevy::window::PrimaryWindow>>()
+        .single(world)
+        .clone();
+
+    // the usual `ResourceInspector` code
+    egui::SidePanel::new(egui::panel::Side::Right, "Resource Inspector").show(
+        egui_context.get_mut(),
+        |ui| {
+            egui::ScrollArea::both().show(ui, |ui| {
+                bevy_inspector_egui::bevy_inspector::ui_for_world(world, ui);
+
+                ui.separator();
+                ui.label("Press space to toggle");
+            });
+        },
+    );
 }
 
 fn draw_toasts(mut contexts: EguiContexts, mut errors: EventReader<GameError>) {

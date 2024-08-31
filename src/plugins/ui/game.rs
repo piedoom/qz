@@ -14,6 +14,7 @@ pub(super) fn draw_ui(
     mut store_events: EventWriter<events::StoreEvent>,
     mut next_state: ResMut<NextState<AppState>>,
     mut current_save: ResMut<SavePath>,
+    draw_inspector: Res<DrawInspector>,
     heat: Query<&Heat>,
     item_handles: Query<&Handle<Item>>,
     items: Res<Assets<Item>>,

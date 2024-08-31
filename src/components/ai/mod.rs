@@ -1,7 +1,9 @@
-pub mod actions;
-pub mod scorers;
+mod requirement;
+pub mod task;
 
 use bevy::prelude::*;
+pub use requirement::Requirement;
+pub use task::TaskLabel;
 
 /// Tracks things in a specified range
 #[derive(Component, Reflect)]
@@ -37,10 +39,12 @@ impl Default for InRange {
     }
 }
 /// Describes a dynamic or static position in the world
-#[derive(Component)]
+#[derive(Component, Reflect)]
 pub enum Waypoint {
     /// Build a waypoint set to the dynamic `translation` of the specified `Entity`
     Entity(Entity),
     /// Build a waypoint set to a static `Vec2` position
     Position(Vec2),
+    /// The waypoint is not doing anything
+    None,
 }
